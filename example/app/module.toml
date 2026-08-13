@@ -1,0 +1,23 @@
+# required!
+type = "application"
+# default: directory name
+name = "app"
+
+[artifact]
+# default: inherited from project
+group = "dev.scriptor.example"
+# default: module name
+name = "app"
+# default: inherited from project
+version = "1.0.0"
+
+# dependencies always inherited from project
+[dependencies]
+# module dependencies
+modules = ["lib"]
+# maven dependencies
+maven = ["com.example:example:1.2.3"]
+
+[application]
+# required!
+main = "dev.scriptor.example.MainKt"

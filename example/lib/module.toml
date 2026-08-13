@@ -1,0 +1,37 @@
+# required!
+type = "library"
+# default: directory name
+name = "lib"
+
+[artifact]
+# default: inherited from project
+group = "dev.scriptor.example"
+# default: module name
+name = "lib"
+# default: inherited from project
+version = "1.0.0"
+
+# dependencies always inherited from project
+[dependencies]
+# module dependencies
+modules = []
+# maven dependencies
+maven = ["com.example:example:1.2.3"]
+
+# compile-time-specific dependencies
+compile.modules = []
+compile.maven = []
+
+# runtime-specific dependencies
+runtime.modules = []
+runtime.maven = []
+
+# test-specific dependencies
+test.modules = []
+test.maven = []
+
+[library]
+# package type; default: jar
+package = "jar"
+# generate source package; default: false
+sources = true

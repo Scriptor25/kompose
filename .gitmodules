@@ -1,0 +1,4 @@
+[submodule "toolkit"]
+	path = deps/toolkit
+	url = https://github.com/Scriptor25/toolkit.git
+	branch = main

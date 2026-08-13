@@ -1,0 +1,11 @@
+name = "example"
+
+[artifact]
+group = "dev.scriptor.example"
+version = "1.0.0"
+
+[modules]
+include = ["app", "lib"]
+
+[repositories]
+maven = ["https://repo1.maven.org/maven2/"]
