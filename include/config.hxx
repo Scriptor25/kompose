@@ -1,6 +1,7 @@
 #pragma once
 
 #include <data/serializer.hxx>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -46,7 +47,15 @@ struct ProjectConfig {
   DependenciesConfig TestDependencies;
 };
 
+enum class ModuleType {
+  Application,
+  Library,
+};
+
 struct ModuleConfig {
+  std::filesystem::path Root;
+
+  ModuleType Type;
   std::optional<std::string> Name;
 
   ArtifactConfig Artifact;

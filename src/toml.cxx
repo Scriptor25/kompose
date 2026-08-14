@@ -59,6 +59,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
 
   if (type == "application") {
     kompose::ApplicationModuleConfig application_config(config);
+    application_config.Type = kompose::ModuleType::Application;
 
     auto &application = node["application"];
 
@@ -71,6 +72,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
 
   if (type == "library") {
     kompose::LibraryModuleConfig library_config(config);
+    library_config.Type = kompose::ModuleType::Library;
 
     auto &library = node["library"];
 
