@@ -40,9 +40,9 @@ static const std::unordered_map<std::string_view,
         {"install", {"package"}},
 };
 
-static toolkit::result<kompose::ProjectGraph> build_project_graph(
-    kompose::ProjectConfig project,
-    std::vector<std::unique_ptr<kompose::ModuleConfig>> modules) {}
+static toolkit::result<kompose::ProjectGraph>
+configure(kompose::ProjectConfig project,
+          std::vector<std::unique_ptr<kompose::ModuleConfig>> modules) {}
 
 static toolkit::result<> run(int argc, const char *const *argv) {
   auto work = std::filesystem::current_path();

@@ -5,7 +5,9 @@
 
 namespace kompose {
 
-struct ModuleNode {};
+struct ModuleNode {
+  std::string Name;
+};
 
 struct ApplicationModuleNode : ModuleNode {};
 
