@@ -1,6 +1,10 @@
+#include <cstdlib>
 #include <kotlin.hxx>
+#include <poll.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
-std::vector<std::string> kompose::KotlinCommand::operator()() const
+std::vector<std::string> kompose::KotlinCommand::Build() const
 {
     std::vector<std::string> command;
     command.emplace_back("kotlinc");
@@ -209,7 +213,7 @@ std::vector<std::string> kompose::KotlinCommand::operator()() const
         for (auto it = JvmScriptTemplates.begin(); it != JvmScriptTemplates.end(); ++it)
         {
             if (it != JvmScriptTemplates.begin())
-                templates += ',';
+                templates += ':'; // TODO
             templates += *it;
         }
         command.emplace_back("-script-templates");
@@ -246,7 +250,7 @@ std::vector<std::string> kompose::KotlinCommand::operator()() const
         for (auto it = JsLibraries.begin(); it != JsLibraries.end(); ++it)
         {
             if (it != JsLibraries.begin())
-                path += ','; // TODO
+                path += ':'; // TODO
             path += *it;
         }
         command.emplace_back("-libraries");
@@ -313,7 +317,7 @@ std::vector<std::string> kompose::KotlinCommand::operator()() const
         for (auto it = JsSourceMapBaseDirs.begin(); it != JsSourceMapBaseDirs.end(); ++it)
         {
             if (it != JsSourceMapBaseDirs.begin())
-                dirs += ','; // TODO
+                dirs += ':'; // TODO
             dirs += *it;
         }
         command.emplace_back("-source-map-base-dirs");
@@ -376,5 +380,122 @@ std::vector<std::string> kompose::KotlinCommand::operator()() const
 
 #pragma endregion
 
+    for (auto& input : Input)
+        command.push_back(input);
+
     return command;
+}
+
+toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::string &err) const
+{
+    auto args = Build();
+
+    char* argv[args.size() + 1];
+    for (size_t i = 0; i < args.size(); ++i)
+    {
+        auto& arg = args[i];
+        auto* ptr = new char[arg.size() + 1];
+        std::copy(arg.begin(), arg.end(), ptr);
+        ptr[arg.size()] = 0;
+        argv[i] = ptr;
+    }
+    argv[args.size()] = nullptr;
+
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+
+    if (pipe(stdout_pipe) < 0)
+        return toolkit::make_error("failed to create stdout pipe");
+    
+    if (pipe(stderr_pipe) < 0)
+        return toolkit::make_error("failed to create stderr pipe");
+
+    const auto pid = fork();
+
+    if (pid < 0)
+        return toolkit::make_error("failed to fork off child process");
+
+    if (pid == 0)
+    {
+        close(stdout_pipe[0]);
+        close(stderr_pipe[0]);
+
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+        dup2(stderr_pipe[1], STDERR_FILENO);
+
+        close(stdout_pipe[1]);
+        close(stderr_pipe[1]);
+
+        execvp("kotlinc", argv);
+
+        _exit(127);
+    }
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    pollfd fds[]
+    {
+        {
+            .fd = stdout_pipe[0],
+            .events = POLLIN,
+        },
+        {
+            .fd = stderr_pipe[0],
+            .events = POLLIN,
+        },
+    };
+
+    char buffer[4096];
+
+    int open_pipes = 2;
+    while (open_pipes > 0)
+    {
+        if (poll(fds, 2, -1) < 0)
+            break;
+
+        for (int i = 0; i < 2; ++i)
+        {
+            if (fds[i].fd < 0)
+                continue;
+
+            if (fds[i].revents & (POLLIN | POLLHUP))
+            {
+                const auto n = read(fds[i].fd, buffer, sizeof(buffer));
+
+                if (n > 0)
+                {
+                    if (i == 0)
+                        out.append(buffer, n);
+                    else
+                        err.append(buffer, n);
+                }
+                else if (n == 0)
+                {
+                    close(fds[i].fd);
+                    fds[i].fd = -1;
+                    --open_pipes;
+                }
+            }
+        }
+    }
+
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (WIFEXITED(status))
+    {
+        auto exit_status = WEXITSTATUS(status);
+        if (exit_status)
+            return toolkit::make_error("process exited with status {}", exit_status);
+    }
+
+    if (WIFSIGNALED(status))
+    {
+        auto terminate_signal = WTERMSIG(status);
+        if (terminate_signal)
+            return toolkit::make_error("process terminated on signal {}", terminate_signal);
+    }
+
+    return {};
 }

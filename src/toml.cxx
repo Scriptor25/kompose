@@ -72,8 +72,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
 
         ok &= application["main"] >> application_config.Main;
 
-        value = std::make_unique<kompose::ApplicationModuleConfig>(
-            std::move(application_config));
+        value = std::make_unique<kompose::ApplicationModuleConfig>(std::move(application_config));
         return ok;
     }
 
@@ -84,8 +83,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
 
         auto& library = node["library"];
 
-        ok &= from_data_opt(library["package"], library_config.Package,
-                            kompose::LibraryModulePackage::Jar);
+        ok &= from_data_opt(library["package"], library_config.Package, kompose::LibraryModulePackage::Jar);
         ok &= from_data_opt(library["sources"], library_config.Sources, false);
 
         value = std::make_unique<kompose::LibraryModuleConfig>(

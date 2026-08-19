@@ -21,8 +21,16 @@ namespace kompose
         std::unordered_set<std::string> MavenDependencies;
     };
 
+    enum class NodeType
+    {
+        Application,
+        Library,
+    };
+
     struct Node
     {
+        NodeType Type;
+
         std::string Name;
         std::filesystem::path Src;
         std::filesystem::path Build;

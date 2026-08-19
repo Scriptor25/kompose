@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <toolkit/result.hxx>
 
 namespace kompose
 {
@@ -97,7 +98,10 @@ namespace kompose
 
     struct KotlinCommand
     {
-        std::vector<std::string> operator()() const;
+        std::vector<std::string> Build() const;
+        toolkit::result<> operator()(std::string &out, std::string &err) const;
+
+        std::unordered_set<std::string> Input;
 
 #pragma region Common
 

@@ -11,6 +11,8 @@
 #include <toml/toml.hxx>
 #include <toolkit/result.hxx>
 
+#include "kotlin.hxx"
+
 static const args::manifest manifest;
 
 // kompose [(--<option>|-<o>)...] <[module:]task>... [-- <argument>...]
@@ -87,6 +89,7 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
                 auto& application_module = reinterpret_cast<const kompose::ApplicationModuleConfig&>(*mod);
 
                 kompose::ApplicationNode application_node(base_node);
+                application_node.Type = kompose::NodeType::Application;
                 application_node.Main = application_module.Main;
 
                 node = std::make_unique<kompose::ApplicationNode>(application_node);
@@ -98,6 +101,7 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
                 auto& library_module = reinterpret_cast<const kompose::LibraryModuleConfig&>(*mod);
 
                 kompose::LibraryNode library_node(base_node);
+                library_node.Type = kompose::NodeType::Library;
 
                 node = std::make_unique<kompose::LibraryNode>(library_node);
                 break;
@@ -113,6 +117,54 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
     };
 
     return graph;
+}
+
+[[nodiscard]] static toolkit::result<> compile(
+    const kompose::Graph& graph,
+    const kompose::Node& node,
+    const kompose::SourceSet& set)
+{
+    std::unordered_set<std::string> sources;
+    for (auto& entry : std::filesystem::recursive_directory_iterator(set.Src / "kotlin"))
+    {
+        if (entry.is_directory())
+            continue;
+
+        auto& path = entry.path();
+        if (!path.has_extension() || path.extension() != ".kt")
+            continue;
+
+        sources.insert(std::filesystem::canonical(path).string());
+    }
+
+    const auto build = std::filesystem::weakly_canonical(set.Build);
+    const auto destination = build / "classes";
+
+    std::filesystem::create_directories(destination);
+
+    kompose::KotlinCommand command
+    {
+        .Input = sources,
+        .JvmClassPath = {
+            // maven jars
+            // module directories
+        },
+        .JvmDestination = destination.string(),
+    };
+
+    switch (node.Type)
+    {
+    case kompose::NodeType::Application:
+        command.JvmIncludeRuntime = true;
+        break;
+
+    case kompose::NodeType::Library:
+        break;
+    }
+
+    command()
+
+    return {};
 }
 
 [[nodiscard]] static toolkit::result<> run(int argc, const char* const * argv)
