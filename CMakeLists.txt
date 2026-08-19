@@ -19,8 +19,8 @@ add_executable(kompose ${SRC})
 target_include_directories(kompose PRIVATE "include")
 
 target_link_libraries(kompose PRIVATE
-    toolkit::core
-    toolkit::args
-    toolkit::json
-    toolkit::toml
+        toolkit::core
+        toolkit::args
+        toolkit::json
+        toolkit::toml
 )
