@@ -208,8 +208,6 @@
 
 [[nodiscard]] static toolkit::result<> launch(const kompose::Node &node)
 {
-    std::cerr << "task " << node.Name << ":launch" << std::endl;
-
     switch (node.Type)
     {
     case kompose::NodeType::Application:
@@ -683,6 +681,21 @@ static const args::manifest manifest;
                 nodes.insert(&node);
         }
 
+        std::unordered_set<const kompose::Node *> nodes_with_dependencies;
+
+        std::queue<const kompose::Node *> queue;
+        for (const auto *node : nodes)
+            queue.push(node);
+        for (; !queue.empty(); queue.pop())
+        {
+            const auto *node = queue.front();
+            nodes_with_dependencies.insert(node);
+
+            const auto &source_set = (*node)["main"];
+            for (const auto *dependency : source_set.ModuleDependencies)
+                queue.push(dependency);
+        }
+
         if (task == "version")
         {
             task_version();
@@ -705,7 +718,7 @@ static const args::manifest manifest;
 
         if (task == "compile")
         {
-            for (const auto *node : nodes)
+            for (const auto *node : nodes_with_dependencies)
                 compile.insert(node);
 
             continue;
@@ -713,7 +726,7 @@ static const args::manifest manifest;
 
         if (task == "resources")
         {
-            for (const auto *node : nodes)
+            for (const auto *node : nodes_with_dependencies)
                 resources.insert(node);
 
             continue;
@@ -721,7 +734,7 @@ static const args::manifest manifest;
 
         if (task == "build")
         {
-            for (const auto *node : nodes)
+            for (const auto *node : nodes_with_dependencies)
             {
                 compile.insert(node);
                 resources.insert(node);
@@ -732,24 +745,28 @@ static const args::manifest manifest;
 
         if (task == "launch")
         {
-            for (const auto *node : nodes)
+            for (const auto *node : nodes_with_dependencies)
             {
                 compile.insert(node);
                 resources.insert(node);
-                launch.insert(node);
             }
+
+            for (const auto *node : nodes)
+                launch.insert(node);
 
             continue;
         }
 
         if (task == "package")
         {
-            for (const auto *node : nodes)
+            for (const auto *node : nodes_with_dependencies)
             {
                 compile.insert(node);
                 resources.insert(node);
-                package.insert(node);
             }
+
+            for (const auto *node : nodes)
+                package.insert(node);
 
             continue;
         }
