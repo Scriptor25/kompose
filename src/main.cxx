@@ -38,7 +38,7 @@
     return sets;
 }
 
-[[nodiscard]] static toolkit::result<kompose::Graph> configure(
+[[nodiscard]] static toolkit::result<kompose::Graph> build_graph(
     const std::filesystem::path &path,
     const kompose::ProjectConfig &project,
     const std::vector<std::unique_ptr<kompose::ModuleConfig>> &modules)
@@ -47,8 +47,6 @@
 
     for (const auto &mod : modules)
     {
-        std::cerr << "task " << *mod->Name << ":configure" << std::endl;
-
         auto &node = nodes[*mod->Name];
 
         const auto src = mod->Root / "src";
@@ -658,7 +656,7 @@ static const args::manifest manifest;
     }
 
     kompose::Graph graph;
-    if (auto res = configure(work, project, modules) >> graph; !res)
+    if (auto res = build_graph(work, project, modules) >> graph; !res)
         return res;
 
     if (auto res = order_tasks(tasks) >> tasks; !res)
