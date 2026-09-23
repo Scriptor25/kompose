@@ -1,17 +1,19 @@
 #include <config.hxx>
+
 #include <memory>
 #include <unordered_map>
 
 bool data::serializer<kompose::ProjectConfig>::from_data(
-    const toml::node& node, kompose::ProjectConfig& value)
+    const toml::node &node,
+    kompose::ProjectConfig &value)
 {
     if (!node.is<toml::table>())
         return false;
 
-    auto& artifact = node["artifact"];
-    auto& modules = node["modules"];
-    auto& repositories = node["repositories"];
-    auto& dependencies = node["dependencies"];
+    auto &artifact = node["artifact"];
+    auto &modules = node["modules"];
+    auto &repositories = node["repositories"];
+    auto &dependencies = node["dependencies"];
 
     auto ok = true;
 
@@ -33,7 +35,8 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
 }
 
 bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
-    const toml::node& node, std::unique_ptr<kompose::ModuleConfig>& value)
+    const toml::node &node,
+    std::unique_ptr<kompose::ModuleConfig> &value)
 {
     if (!node.is<toml::table>())
         return false;
@@ -42,9 +45,9 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
     if (!(node["type"] >> type))
         return false;
 
-    auto& artifact = node["artifact"];
-    auto& repositories = node["repositories"];
-    auto& dependencies = node["dependencies"];
+    auto &artifact = node["artifact"];
+    auto &repositories = node["repositories"];
+    auto &dependencies = node["dependencies"];
 
     kompose::ModuleConfig config;
 
@@ -68,7 +71,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
         kompose::ApplicationModuleConfig application_config(config);
         application_config.Type = kompose::ModuleType::Application;
 
-        auto& application = node["application"];
+        auto &application = node["application"];
 
         ok &= application["main"] >> application_config.Main;
 
@@ -81,7 +84,7 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
         kompose::LibraryModuleConfig library_config(config);
         library_config.Type = kompose::ModuleType::Library;
 
-        auto& library = node["library"];
+        auto &library = node["library"];
 
         ok &= from_data_opt(library["package"], library_config.Package, kompose::LibraryModulePackage::Jar);
         ok &= from_data_opt(library["sources"], library_config.Sources, false);
@@ -95,7 +98,8 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
 }
 
 bool data::serializer<kompose::DependenciesConfig>::from_data(
-    const toml::node& node, kompose::DependenciesConfig& value)
+    const toml::node &node,
+    kompose::DependenciesConfig &value)
 {
     if (!node.is<toml::table>())
         return false;
@@ -109,11 +113,12 @@ bool data::serializer<kompose::DependenciesConfig>::from_data(
 }
 
 bool data::serializer<kompose::LibraryModulePackage>::from_data(
-    const toml::node& node, kompose::LibraryModulePackage& value)
+    const toml::node &node,
+    kompose::LibraryModulePackage &value)
 {
     static const std::unordered_map<std::string, kompose::LibraryModulePackage> map
     {
-        {"jar", kompose::LibraryModulePackage::Jar},
+        { "jar", kompose::LibraryModulePackage::Jar },
     };
 
     std::string key;

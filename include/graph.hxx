@@ -17,7 +17,7 @@ namespace kompose
         std::filesystem::path Src;
         std::filesystem::path Build;
 
-        std::unordered_set<const Node*> ModuleDependencies;
+        std::unordered_set<const Node *> ModuleDependencies;
         std::unordered_set<std::string> MavenDependencies;
     };
 

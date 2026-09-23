@@ -1,11 +1,12 @@
 #pragma once
 
+#include <toolkit/result.hxx>
+
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <toolkit/result.hxx>
 
 namespace kompose
 {

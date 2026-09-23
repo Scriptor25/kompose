@@ -1,17 +1,19 @@
 #include <config.hxx>
+#include <graph.hxx>
+#include <kotlin.hxx>
+
+#include <args/args.hxx>
+#include <toml/toml.hxx>
+
+#include <toolkit/result.hxx>
+
 #include <filesystem>
 #include <fstream>
-#include <graph.hxx>
 #include <iostream>
 #include <memory>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
-#include <args/args.hxx>
-#include <toml/toml.hxx>
-#include <toolkit/result.hxx>
-
-#include "kotlin.hxx"
 
 static const args::manifest manifest;
 
@@ -30,46 +32,47 @@ static const args::manifest manifest;
 
 static const std::unordered_map<std::string_view, std::unordered_set<std::string_view>> task_graph
 {
-    {"version", {}},
-    {"help", {}},
-    {"tasks", {}},
-    {"clean", {}},
-    {"compile", {}},
-    {"test", {"compile"}},
-    {"package", {"compile"}},
-    {"build", {"package"}},
-    {"install", {"package"}},
+    { "version", {} },
+    { "help", {} },
+    { "tasks", {} },
+    { "clean", {} },
+    { "compile", {} },
+    { "test", { "compile" } },
+    { "package", { "compile" } },
+    { "build", { "package" } },
+    { "install", { "package" } },
 };
 
 [[nodiscard]] static std::unordered_map<std::string, kompose::SourceSet> source_sets(
-    const std::filesystem::path& src,
-    const std::filesystem::path& build,
-    const std::unordered_set<std::string>& names)
+    const std::filesystem::path &src,
+    const std::filesystem::path &build,
+    const std::unordered_set<std::string> &names)
 {
     std::unordered_map<std::string, kompose::SourceSet> sets;
-    for (auto& name : names)
-        sets.insert({
-            name,
+    for (auto &name : names)
+        sets.insert(
             {
-                .Name = name,
-                .Src = src / name,
-                .Build = build / name,
-            },
-        });
+                name,
+                {
+                    .Name = name,
+                    .Src = src / name,
+                    .Build = build / name,
+                },
+            });
     return sets;
 }
 
 [[nodiscard]] static toolkit::result<kompose::Graph> configure(
-    const std::filesystem::path& path,
-    const kompose::ProjectConfig& project,
-    const std::vector<std::unique_ptr<kompose::ModuleConfig>>& modules)
+    const std::filesystem::path &path,
+    const kompose::ProjectConfig &project,
+    const std::vector<std::unique_ptr<kompose::ModuleConfig>> &modules)
 {
     std::vector<std::unique_ptr<kompose::Node>> nodes(modules.size());
 
     for (size_t i = 0; i < nodes.size(); ++i)
     {
-        auto& node = nodes[i];
-        auto& mod = modules[i];
+        auto &node = nodes[i];
+        auto &mod = modules[i];
 
         auto src = mod->Root / "src";
         auto build = path / "build" / *mod->Name;
@@ -79,33 +82,33 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
             .Name = *mod->Name,
             .Src = src,
             .Build = build,
-            .SourceSets = source_sets(src, build, {"main", "test"}),
+            .SourceSets = source_sets(src, build, { "main", "test" }),
         };
 
         switch (mod->Type)
         {
         case kompose::ModuleType::Application:
-            {
-                auto& application_module = reinterpret_cast<const kompose::ApplicationModuleConfig&>(*mod);
+        {
+            auto &application_module = reinterpret_cast<const kompose::ApplicationModuleConfig &>(*mod);
 
-                kompose::ApplicationNode application_node(base_node);
-                application_node.Type = kompose::NodeType::Application;
-                application_node.Main = application_module.Main;
+            kompose::ApplicationNode application_node(base_node);
+            application_node.Type = kompose::NodeType::Application;
+            application_node.Main = application_module.Main;
 
-                node = std::make_unique<kompose::ApplicationNode>(application_node);
-                break;
-            }
+            node = std::make_unique<kompose::ApplicationNode>(application_node);
+            break;
+        }
 
         case kompose::ModuleType::Library:
-            {
-                auto& library_module = reinterpret_cast<const kompose::LibraryModuleConfig&>(*mod);
+        {
+            auto &library_module = reinterpret_cast<const kompose::LibraryModuleConfig &>(*mod);
 
-                kompose::LibraryNode library_node(base_node);
-                library_node.Type = kompose::NodeType::Library;
+            kompose::LibraryNode library_node(base_node);
+            library_node.Type = kompose::NodeType::Library;
 
-                node = std::make_unique<kompose::LibraryNode>(library_node);
-                break;
-            }
+            node = std::make_unique<kompose::LibraryNode>(library_node);
+            break;
+        }
         }
     }
 
@@ -120,17 +123,17 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
 }
 
 [[nodiscard]] static toolkit::result<> compile(
-    const kompose::Graph& graph,
-    const kompose::Node& node,
-    const kompose::SourceSet& set)
+    const kompose::Graph &graph,
+    const kompose::Node &node,
+    const kompose::SourceSet &set)
 {
     std::unordered_set<std::string> sources;
-    for (auto& entry : std::filesystem::recursive_directory_iterator(set.Src / "kotlin"))
+    for (auto &entry : std::filesystem::recursive_directory_iterator(set.Src / "kotlin"))
     {
         if (entry.is_directory())
             continue;
 
-        auto& path = entry.path();
+        auto &path = entry.path();
         if (!path.has_extension() || path.extension() != ".kt")
             continue;
 
@@ -162,22 +165,24 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
         break;
     }
 
-    command()
+    std::string out, err;
+    if (auto res = command(out, err); !res)
+        return res;
 
     return {};
 }
 
-[[nodiscard]] static toolkit::result<> run(int argc, const char* const * argv)
+[[nodiscard]] static toolkit::result<> run(int argc, const char *const *argv)
 {
     auto work = std::filesystem::current_path();
 
     args::context context;
-    if (auto res = args::context::parse(manifest, {argv, static_cast<size_t>(argc)}) >> context; !res)
+    if (auto res = args::context::parse(manifest, { argv, static_cast<size_t>(argc) }) >> context; !res)
         return res;
 
     std::unordered_set<std::string_view> tasks;
 
-    size_t task_count = context.limited() ? context.limit() : context.size();
+    auto task_count = context.limited() ? context.limit() : context.size();
     for (size_t i = 0; i < task_count; ++i)
         tasks.insert(context[i]);
 
@@ -202,7 +207,7 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
         project.Name = work.filename();
 
     std::vector<std::unique_ptr<kompose::ModuleConfig>> modules;
-    for (auto& name : project.Modules.Include)
+    for (auto &name : project.Modules.Include)
     {
         if (!std::filesystem::is_directory(name))
         {
@@ -241,41 +246,41 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
         if (!mod->Artifact.Version)
             mod->Artifact.Version = project.Artifact.Version;
 
-        for (auto& entry : project.Repositories.Maven)
+        for (auto &entry : project.Repositories.Maven)
             mod->Repositories.Maven.insert(entry);
 
-        for (auto& entry : project.Dependencies.Modules)
+        for (auto &entry : project.Dependencies.Modules)
             mod->Dependencies.Modules.insert(entry);
 
-        for (auto& entry : project.Dependencies.Maven)
+        for (auto &entry : project.Dependencies.Maven)
             mod->Dependencies.Maven.insert(entry);
 
-        for (auto& entry : project.CompileDependencies.Modules)
+        for (auto &entry : project.CompileDependencies.Modules)
             mod->CompileDependencies.Modules.insert(entry);
 
-        for (auto& entry : project.CompileDependencies.Maven)
+        for (auto &entry : project.CompileDependencies.Maven)
             mod->CompileDependencies.Maven.insert(entry);
 
-        for (auto& entry : project.RuntimeDependencies.Modules)
+        for (auto &entry : project.RuntimeDependencies.Modules)
             mod->RuntimeDependencies.Modules.insert(entry);
 
-        for (auto& entry : project.RuntimeDependencies.Maven)
+        for (auto &entry : project.RuntimeDependencies.Maven)
             mod->RuntimeDependencies.Maven.insert(entry);
 
-        for (auto& entry : project.TestDependencies.Modules)
+        for (auto &entry : project.TestDependencies.Modules)
             mod->TestDependencies.Modules.insert(entry);
 
-        for (auto& entry : project.TestDependencies.Maven)
+        for (auto &entry : project.TestDependencies.Maven)
             mod->TestDependencies.Maven.insert(entry);
 
-        for (auto& entry : mod->Dependencies.Modules)
+        for (auto &entry : mod->Dependencies.Modules)
         {
             mod->CompileDependencies.Modules.insert(entry);
             mod->RuntimeDependencies.Modules.insert(entry);
             mod->TestDependencies.Modules.insert(entry);
         }
 
-        for (auto& entry : mod->Dependencies.Maven)
+        for (auto &entry : mod->Dependencies.Maven)
         {
             mod->CompileDependencies.Maven.insert(entry);
             mod->RuntimeDependencies.Maven.insert(entry);
@@ -292,7 +297,7 @@ static const std::unordered_map<std::string_view, std::unordered_set<std::string
     return {};
 }
 
-int main(const int argc, const char* const * argv)
+int main(const int argc, const char *const *argv)
 {
     if (auto res = run(argc, argv); !res)
     {

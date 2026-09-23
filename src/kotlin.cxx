@@ -1,8 +1,10 @@
-#include <cstdlib>
 #include <kotlin.hxx>
+
 #include <poll.h>
 #include <unistd.h>
 #include <sys/wait.h>
+
+#include <cstdlib>
 
 std::vector<std::string> kompose::KotlinCommand::Build() const
 {
@@ -26,12 +28,12 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
         command.emplace_back("-language-version");
         command.push_back(*LanguageVersion);
     }
-    for (auto& entry : OptIn)
+    for (auto &entry : OptIn)
     {
         command.emplace_back("-opt-in");
         command.push_back(entry);
     }
-    for (auto& [fst, snd] : PluginOptions)
+    for (auto &[fst, snd] : PluginOptions)
     {
         command.emplace_back("-P");
         command.push_back(fst + '=' + snd);
@@ -54,7 +56,7 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
         command.emplace_back("-Xallow-reified-type-in-catch");
     if (CollectionLiterals)
         command.emplace_back("-Xcollection-literals");
-    for (auto& [fst, snd] : CompilerPluginOrder)
+    for (auto &[fst, snd] : CompilerPluginOrder)
     {
         command.emplace_back("-X-compiler-plugin-order");
         command.push_back(fst + '>' + snd);
@@ -120,7 +122,7 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
         command.emplace_back("-Wextra");
     if (RenderInternalDiagnosticNames)
         command.emplace_back("-Xrender-internal-diagnostic-names");
-    for (auto& [fst, snd] : WarningLevel)
+    for (auto &[fst, snd] : WarningLevel)
     {
         std::string name;
         switch (snd)
@@ -221,7 +223,7 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
     }
     if (JvmExposeBoxed)
         command.emplace_back("-Xjvm-expose-boxed");
-    for (auto& [fst, snd] : JvmNullabilityAnnotations)
+    for (auto &[fst, snd] : JvmNullabilityAnnotations)
     {
         std::string level;
         switch (snd)
@@ -380,7 +382,7 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
 
 #pragma endregion
 
-    for (auto& input : Input)
+    for (auto &input : Input)
         command.push_back(input);
 
     return command;
@@ -390,12 +392,12 @@ toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::stri
 {
     auto args = Build();
 
-    char* argv[args.size() + 1];
+    char *argv[args.size() + 1];
     for (size_t i = 0; i < args.size(); ++i)
     {
-        auto& arg = args[i];
-        auto* ptr = new char[arg.size() + 1];
-        std::copy(arg.begin(), arg.end(), ptr);
+        auto &arg = args[i];
+        auto *ptr = new char[arg.size() + 1];
+        std::ranges::copy(arg, ptr);
         ptr[arg.size()] = 0;
         argv[i] = ptr;
     }
@@ -406,7 +408,7 @@ toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::stri
 
     if (pipe(stdout_pipe) < 0)
         return toolkit::make_error("failed to create stdout pipe");
-    
+
     if (pipe(stderr_pipe) < 0)
         return toolkit::make_error("failed to create stderr pipe");
 
@@ -448,22 +450,20 @@ toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::stri
 
     char buffer[4096];
 
-    int open_pipes = 2;
+    auto open_pipes = 2;
     while (open_pipes > 0)
     {
         if (poll(fds, 2, -1) < 0)
             break;
 
-        for (int i = 0; i < 2; ++i)
+        for (auto i = 0; i < 2; ++i)
         {
             if (fds[i].fd < 0)
                 continue;
 
             if (fds[i].revents & (POLLIN | POLLHUP))
             {
-                const auto n = read(fds[i].fd, buffer, sizeof(buffer));
-
-                if (n > 0)
+                if (const auto n = read(fds[i].fd, buffer, sizeof(buffer)); n > 0)
                 {
                     if (i == 0)
                         out.append(buffer, n);
@@ -484,18 +484,12 @@ toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::stri
     waitpid(pid, &status, 0);
 
     if (WIFEXITED(status))
-    {
-        auto exit_status = WEXITSTATUS(status);
-        if (exit_status)
+        if (auto exit_status = WEXITSTATUS(status))
             return toolkit::make_error("process exited with status {}", exit_status);
-    }
 
     if (WIFSIGNALED(status))
-    {
-        auto terminate_signal = WTERMSIG(status);
-        if (terminate_signal)
+        if (auto terminate_signal = WTERMSIG(status))
             return toolkit::make_error("process terminated on signal {}", terminate_signal);
-    }
 
     return {};
 }

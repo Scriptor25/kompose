@@ -1,11 +1,13 @@
 #pragma once
 
+#include <toml/toml.hxx>
+
 #include <data/serializer.hxx>
+
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
-#include <toml/toml.hxx>
 #include <unordered_set>
 
 namespace kompose
@@ -93,29 +95,32 @@ namespace kompose
     };
 } // namespace kompose
 
-template <>
+template<>
 struct data::serializer<kompose::ProjectConfig>
 {
-    static bool from_data(const toml::node& node, kompose::ProjectConfig& value);
+    static bool from_data(const toml::node &node, kompose::ProjectConfig &value);
 };
 
-template <>
+template<>
 struct data::serializer<std::unique_ptr<kompose::ModuleConfig>>
 {
-    static bool from_data(const toml::node& node,
-                          std::unique_ptr<kompose::ModuleConfig>& value);
+    static bool from_data(
+        const toml::node &node,
+        std::unique_ptr<kompose::ModuleConfig> &value);
 };
 
-template <>
+template<>
 struct data::serializer<kompose::DependenciesConfig>
 {
-    static bool from_data(const toml::node& node,
-                          kompose::DependenciesConfig& value);
+    static bool from_data(
+        const toml::node &node,
+        kompose::DependenciesConfig &value);
 };
 
-template <>
+template<>
 struct data::serializer<kompose::LibraryModulePackage>
 {
-    static bool from_data(const toml::node& node,
-                          kompose::LibraryModulePackage& value);
+    static bool from_data(
+        const toml::node &node,
+        kompose::LibraryModulePackage &value);
 };
