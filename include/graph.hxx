@@ -5,7 +5,6 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 namespace kompose
 {
@@ -63,6 +62,8 @@ namespace kompose
         };
 
         const Node &operator[](const std::string &name) const;
+
+        iterator find(const std::string &name) const;
 
         iterator begin() const;
         iterator end() const;

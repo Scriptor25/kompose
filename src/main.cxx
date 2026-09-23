@@ -1,6 +1,7 @@
 #include <config.hxx>
 #include <graph.hxx>
 #include <kotlin.hxx>
+#include <process.hxx>
 
 #include <args/args.hxx>
 #include <toml/toml.hxx>
@@ -12,7 +13,6 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <process.hxx>
 #include <queue>
 #include <ranges>
 #include <string_view>
@@ -25,7 +25,7 @@
     const std::unordered_set<std::string> &names)
 {
     std::unordered_map<std::string, kompose::SourceSet> sets;
-    for (auto &name : names)
+    for (const auto &name : names)
         sets.insert(
             {
                 name,
@@ -45,14 +45,14 @@
 {
     std::unordered_map<std::string, std::unique_ptr<kompose::Node>> nodes(modules.size());
 
-    for (auto &mod : modules)
+    for (const auto &mod : modules)
     {
         std::cerr << "task " << *mod->Name << ":configure" << std::endl;
 
         auto &node = nodes[*mod->Name];
 
-        auto src = mod->Root / "src";
-        auto build = path / "build" / *mod->Name;
+        const auto src = mod->Root / "src";
+        const auto build = path / "build" / *mod->Name;
 
         kompose::Node base_node
         {
@@ -62,15 +62,14 @@
             .SourceSets = source_sets(
                 src,
                 build,
-                { "main" }
-            ),
+                { "main" }),
         };
 
         switch (mod->Type)
         {
         case kompose::ModuleType::Application:
         {
-            auto &application_module = reinterpret_cast<const kompose::ApplicationModuleConfig &>(*mod);
+            const auto &application_module = reinterpret_cast<const kompose::ApplicationModuleConfig &>(*mod);
 
             kompose::ApplicationNode application_node(base_node);
             application_node.Type = kompose::NodeType::Application;
@@ -82,7 +81,7 @@
 
         case kompose::ModuleType::Library:
         {
-            auto &library_module = reinterpret_cast<const kompose::LibraryModuleConfig &>(*mod);
+            const auto &library_module = reinterpret_cast<const kompose::LibraryModuleConfig &>(*mod);
 
             kompose::LibraryNode library_node(base_node);
             library_node.Type = kompose::NodeType::Library;
@@ -93,27 +92,27 @@
         }
     }
 
-    for (auto &mod : modules)
+    for (const auto &mod : modules)
     {
         auto &node = nodes[*mod->Name];
 
         std::unordered_set<const kompose::Node *> module_dependencies;
         std::unordered_set<std::string> maven_dependencies;
 
-        for (auto &dependency : mod->Dependencies.Modules)
+        for (const auto &dependency : mod->Dependencies.Modules)
             module_dependencies.insert(nodes[dependency].get());
-        for (auto &dependency : mod->Dependencies.Maven)
+        for (const auto &dependency : mod->Dependencies.Maven)
             maven_dependencies.insert(dependency);
 
-        for (auto &dependency : mod->CompileDependencies.Modules)
+        for (const auto &dependency : mod->CompileDependencies.Modules)
             module_dependencies.insert(nodes[dependency].get());
-        for (auto &dependency : mod->CompileDependencies.Maven)
+        for (const auto &dependency : mod->CompileDependencies.Maven)
             maven_dependencies.insert(dependency);
 
-        for (auto &set : node->SourceSets | std::views::values)
+        for (auto &source_set : node->SourceSets | std::views::values)
         {
-            set.ModuleDependencies = module_dependencies;
-            set.MavenDependencies = maven_dependencies;
+            source_set.ModuleDependencies = module_dependencies;
+            source_set.MavenDependencies = maven_dependencies;
         }
     }
 
@@ -127,38 +126,57 @@
     return graph;
 }
 
-static std::vector<const kompose::Node *> build_compile_path(std::unordered_set<const kompose::Node *> nodes)
+[[nodiscard]] static std::vector<const kompose::Node *> build_compile_path(
+    const std::unordered_set<const kompose::Node *> &nodes)
 {
+    std::queue<const kompose::Node *> queue;
+    for (const auto *node : nodes)
+        queue.push(node);
+
+    std::unordered_set<const kompose::Node *> compiled;
+    std::vector<const kompose::Node *> compile_path;
+    for (; !queue.empty(); queue.pop())
+    {
+        const auto *node = queue.front();
+        if (!compiled.insert(node).second)
+            continue;
+
+        compile_path.push_back(node);
+
+        const auto &source_set = (*node)["main"];
+        for (const auto *dependency : source_set.ModuleDependencies)
+            queue.push(dependency);
+    }
+
+    return { compile_path.rbegin(), compile_path.rend() };
 }
 
 [[nodiscard]] static toolkit::result<> compile(
     const kompose::Node &node,
-    const kompose::SourceSet &set)
+    const kompose::SourceSet &source_set)
 {
-    std::cerr << "task " << node.Name << ":compile" << std::endl;
-
     std::unordered_set<std::string> sources;
-    for (auto &entry : std::filesystem::recursive_directory_iterator(set.Src / "kotlin"))
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Src / "kotlin"))
     {
         if (entry.is_directory())
             continue;
 
-        auto &path = entry.path();
+        const auto &path = entry.path();
         if (!path.has_extension() || path.extension() != ".kt")
             continue;
 
         sources.insert(path);
     }
 
-    const auto destination = set.Build / "classes";
+    const auto destination = source_set.Build / "classes";
 
     std::filesystem::create_directories(destination);
 
     std::unordered_set<std::string> class_path;
-    for (const auto *dependency : set.ModuleDependencies)
+    for (const auto *dependency : source_set.ModuleDependencies)
     {
-        auto &source_set = dependency->SourceSets.at("main");
-        class_path.insert(source_set.Build / "classes");
+        const auto &dependency_source_set = dependency->SourceSets.at("main");
+        class_path.insert(dependency_source_set.Build / "classes");
     }
 
     kompose::KotlinCommand command
@@ -204,7 +222,7 @@ static std::vector<const kompose::Node *> build_compile_path(std::unordered_set<
     }
 
     const auto &application_node = reinterpret_cast<const kompose::ApplicationNode &>(node);
-    auto &main_class = application_node.Main;
+    const auto &main_class = application_node.Main;
 
     std::unordered_set<const kompose::Node *> module_dependencies;
     std::unordered_set<std::string> maven_dependencies;
@@ -214,29 +232,35 @@ static std::vector<const kompose::Node *> build_compile_path(std::unordered_set<
     for (; !queue.empty(); queue.pop())
     {
         const auto *next = queue.front();
-        auto &set = next->SourceSets.at("main");
+        const auto &source_set = next->SourceSets.at("main");
 
         module_dependencies.insert(next);
 
-        for (const auto *dependency : set.ModuleDependencies)
+        for (const auto *dependency : source_set.ModuleDependencies)
             queue.push(dependency);
 
-        for (auto &dependency : set.MavenDependencies)
+        for (const auto &dependency : source_set.MavenDependencies)
             maven_dependencies.insert(dependency);
     }
 
     std::vector<std::string> class_path;
 
-    for (auto *dependency : module_dependencies)
-        class_path.emplace_back(dependency->SourceSets.at("main").Build / "classes");
+    for (const auto *dependency : module_dependencies)
+    {
+        auto &source_set = dependency->SourceSets.at("main");
+        class_path.emplace_back(source_set.Build / "classes");
+    }
 
-    for (auto &dependency : maven_dependencies)
+    for (const auto &dependency : maven_dependencies)
     {
         // TODO: resolve maven dependency, add to class path
     }
 
-    class_path.emplace_back("/home/felix/.local/opt/kotlinc/lib/kotlin-stdlib.jar");
-    // TODO: locate kotlin compiler home, $KOTLIN_HOME/lib/...
+    const auto *kotlin_home = getenv("KOTLIN_HOME");
+    if (!kotlin_home)
+        return toolkit::make_error("missing KOTLIN_HOME environment variable");
+
+    class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
 
     std::string class_path_string;
     for (auto it = class_path.begin(); it != class_path.end(); ++it)
@@ -264,7 +288,6 @@ static std::vector<const kompose::Node *> build_compile_path(std::unordered_set<
 // tasks:
 //  version
 //  help
-//  tasks
 //  clean
 //  compile
 //  resources
@@ -272,256 +295,246 @@ static std::vector<const kompose::Node *> build_compile_path(std::unordered_set<
 //  launch  -> build
 //  package -> build
 
-static const std::unordered_map<std::string_view, std::unordered_set<std::string_view>> task_graph
+namespace
 {
-    { "version", {} },
-    { "help", {} },
-    { "tasks", {} },
-    { "clean", {} },
-    { "compile", {} },
-    { "resources", {} },
-    { "build", { "compile", "resources" } },
-    { "launch", { "build" } },
-    { "package", { "build" } },
+    struct Task
+    {
+        size_t Order;
+        std::unordered_set<std::string_view> Dependencies;
+    };
+
+    struct TaskRequest
+    {
+        std::string_view Task;
+        std::optional<std::string_view> Module;
+    };
+
+    struct TaskEntry
+    {
+        size_t Order;
+        std::string_view Task;
+    };
+}
+
+static const std::unordered_map<std::string_view, Task> task_graph
+{
+    { "version", { .Order = 0, .Dependencies = {} } },
+    { "help", { .Order = 1, .Dependencies = {} } },
+    { "clean", { .Order = 2, .Dependencies = {} } },
+    { "compile", { .Order = 3, .Dependencies = {} } },
+    { "resources", { .Order = 4, .Dependencies = {} } },
+    { "build", { .Order = 5, .Dependencies = { "compile", "resources" } } },
+    { "launch", { .Order = 6, .Dependencies = { "build" } } },
+    { "package", { .Order = 7, .Dependencies = { "build" } } },
 };
 
-/**
- * kompose version
- */
-[[nodiscard]] static toolkit::result<> task_version(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<std::unordered_set<std::string_view>> collect_required(
+    const std::vector<TaskRequest> &requests)
+{
+    std::unordered_set<std::string_view> required;
+
+    std::queue<TaskRequest> queue;
+    for (const auto &request : requests)
+        queue.push(request);
+    for (; !queue.empty(); queue.pop())
+    {
+        const auto &request = queue.front();
+        if (!required.insert(request.Task).second)
+            continue;
+
+        auto it = task_graph.find(request.Task);
+        if (it == task_graph.end())
+            return toolkit::make_error("undefined task {}:{}", request.Module.value_or({}), request.Task);
+
+        const auto &task = it->second;
+        for (const auto dependency : task.Dependencies)
+            queue.push({ .Task = dependency, .Module = request.Module });
+    }
+
+    return required;
+}
+
+[[nodiscard]] static toolkit::result<std::vector<TaskRequest>> order_tasks(const std::vector<TaskRequest> &requests)
+{
+    std::unordered_set<std::string_view> required;
+    if (auto res = collect_required(requests) >> required; !res)
+        return res;
+
+    std::unordered_map<std::string_view, size_t> in_degree;
+    std::unordered_map<std::string_view, std::vector<std::string_view>> dependents;
+
+    for (const auto name : required)
+        in_degree[name] = {};
+
+    for (const auto name : required)
+    {
+        const auto &task = task_graph.at(name);
+
+        for (const auto dependency : task.Dependencies)
+        {
+            if (!required.contains(dependency))
+                continue;
+
+            ++in_degree[name];
+
+            dependents[dependency].push_back(name);
+        }
+    }
+
+    auto compare_task_entry = [](const TaskEntry &a, const TaskEntry &b)
+    {
+        return a.Order != b.Order ? a.Order > b.Order : a.Task > b.Task;
+    };
+
+    std::priority_queue<TaskEntry, std::vector<TaskEntry>, decltype(compare_task_entry)> entries(compare_task_entry);
+
+    for (const auto &[name, degree] : in_degree)
+        if (!degree)
+            entries.emplace(task_graph.at(name).Order, name);
+
+    std::unordered_map<std::string_view, std::vector<std::optional<std::string_view>>> arguments;
+    for (const auto &[task, module] : requests)
+        arguments[task].push_back(module);
+
+    std::vector<TaskRequest> result;
+    result.reserve(requests.size());
+
+    while (!entries.empty())
+    {
+        const auto [_, name] = entries.top();
+        entries.pop();
+
+        for (const auto &module : arguments[name])
+            result.emplace_back(name, module);
+
+        for (const auto dependent : dependents[name])
+        {
+            auto &degree = in_degree.at(dependent);
+
+            --degree;
+
+            if (!degree)
+                entries.emplace(task_graph.at(name).Order, dependent);
+        }
+    }
+
+    return result;
+}
+
+static void task_version()
 {
     std::cerr << "task :version" << std::endl;
 
     std::cout << "0.0.0" << std::endl;
-    return {};
 }
 
-/**
- * kompose help
- */
-[[nodiscard]] static toolkit::result<> task_help(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+static void task_help()
 {
     std::cerr << "task :help" << std::endl;
 
     std::cout << "kompose [<option>...] <[module:]task>... [-- <argument>...]" << std::endl;
-    return {};
 }
 
-/**
- * kompose [<module>:]tasks
- */
-[[nodiscard]] static toolkit::result<> task_tasks(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    std::cerr << "task " << node_name.value_or({}) << ":tasks" << std::endl;
-
-    if (node_name)
+    for (const auto *node : nodes)
     {
-        auto &node = graph[std::string(*node_name)];
+        std::cerr << "task " << node->Name << ":clean" << std::endl;
 
-        std::cout
-                << std::format(
-                    "{0}:tasks {0}:clean {0}:compile {0}:resources {0}:build {0}:launch {0}:package",
-                    *node_name)
-                << std::endl;
-    }
-    else
-    {
-        std::cout << "version help tasks clean compile resources build launch package" << std::endl;
+        const auto &build = node->Build;
+
+        if (std::error_code ec; std::filesystem::remove_all(build, ec), ec)
+            return toolkit::make_error(
+                "failed to remove directory '{}': {} ({})",
+                build.string(),
+                ec.message(),
+                ec.value());
     }
 
     return {};
 }
 
-/**
- * kompose [<module>:]clean
- */
-[[nodiscard]] static toolkit::result<> task_clean(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<> task_compile(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    std::cerr << "task " << node_name.value_or({}) << ":clean" << std::endl;
+    const auto path = build_compile_path(nodes);
 
-    std::filesystem::path build;
-
-    if (node_name)
+    for (const auto *node : path)
     {
-        auto &node = graph[std::string(*node_name)];
+        std::cerr << "task " << node->Name << ":compile" << std::endl;
 
-        build = node.Build;
-    }
-    else
-    {
-        build = graph.Path / "build";
-    }
+        const auto &source_set = (*node)["main"];
 
-    if (std::error_code ec; std::filesystem::remove_all(build, ec), ec)
-        return toolkit::make_error(
-            "failed to remove directory '{}': {} ({})",
-            build.string(),
-            ec.message(),
-            ec.value());
-
-    return {};
-}
-
-/**
- * kompose [<module>:]compile
- */
-[[nodiscard]] static toolkit::result<> task_compile(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
-{
-    std::cerr << "task " << node_name.value_or({}) << ":compile" << std::endl;
-
-    std::vector<const kompose::Node *> path;
-
-    if (node_name)
-    {
-        const auto &node = graph[std::string(*node_name)];
-
-        path = build_compile_path({ &node });
-    }
-    else
-    {
-        std::unordered_set<const kompose::Node *> nodes;
-        for (const auto &node : graph)
-            nodes.insert(&node);
-
-        path = build_compile_path(nodes);
-    }
-
-    // TODO: compile module dependencies
-
-    for (const auto *entry : path)
-    {
-        auto &node = *entry;
-        if (auto res = compile(node, node["main"]); !res)
+        if (auto res = compile(*node, source_set); !res)
             return res;
     }
 
     return {};
 }
 
-/**
- * kompose [<module>:]resources
- */
-[[nodiscard]] static toolkit::result<> task_resources(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<> task_resources(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    std::cerr << "task " << node_name.value_or({}) << ":resources" << std::endl;
-
-    if (node_name)
+    for (const auto *node : nodes)
     {
-        auto &node = graph[std::string(*node_name)];
+        std::cerr << "task " << node->Name << ":resources" << std::endl;
 
-        // TODO: copy the resources of the specified module
-    }
-    else
-    {
-        // TODO: copy all resources
-    }
+        const auto &source_set = (*node)["main"];
 
-    std::unordered_set<std::string> resources;
-    for (auto &entry : std::filesystem::recursive_directory_iterator(src_set / "resources"))
-        if (!entry.is_directory())
-            resources.insert(entry.path());
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Src / "resources"))
+        {
+            if (entry.is_directory())
+                continue;
 
-    return {};
-}
+            const auto &from = entry.path();
+            const auto to = source_set.Build / "classes" / std::filesystem::relative(entry.path(), source_set.Src);
 
-/**
- * kompose [<module>:]build
- */
-[[nodiscard]] static toolkit::result<> task_build(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
-{
-    if (auto res = task_compile(graph, node_name); !res)
-        return res;
-    if (auto res = task_resources(graph, node_name); !res)
-        return res;
+            if (std::error_code ec; std::filesystem::create_directories(to.parent_path(), ec), ec)
+                return toolkit::make_error(
+                    "failed to create directory '{}': {} ({})",
+                    to.parent_path().string(),
+                    ec.message(),
+                    ec.value());
 
-    std::cerr << "task " << node_name.value_or({}) << ":build" << std::endl;
-
-    if (node_name)
-    {
-        auto &node = graph[std::string(*node_name)];
-
-        // TODO: do something with node?
-    }
-    else
-    {
-        // TODO: do something?
+            if (std::error_code ec;
+                std::filesystem::copy_file(
+                    from,
+                    to,
+                    std::filesystem::copy_options::overwrite_existing,
+                    ec), ec)
+                return toolkit::make_error(
+                    "failed to copy file from '{}' to '{}': {} ({})",
+                    from.string(),
+                    to.string(),
+                    ec.message(),
+                    ec.value());
+        }
     }
 
     return {};
 }
 
-/**
- * kompose [<module>:]launch
- */
-[[nodiscard]] static toolkit::result<> task_launch(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<> task_launch(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    if (auto res = task_build(graph, node_name); !res)
-        return res;
-
-    std::cerr << "task " << node_name.value_or({}) << ":launch" << std::endl;
-
-    const kompose::Node *app_node{};
-    if (node_name)
+    for (const auto *node : nodes)
     {
-        auto &node = graph[std::string(*node_name)];
+        if (node->Type != kompose::NodeType::Application)
+            continue;
 
-        app_node = &node;
-    }
-    else
-    {
-        for (auto &node : graph)
-            if (node.Type == kompose::NodeType::Application)
-            {
-                if (app_node)
-                    return toolkit::make_error("project graph contains more than one application module");
+        std::cerr << "task " << node->Name << ":launch" << std::endl;
 
-                app_node = &node;
-            }
-
-        if (!app_node)
-            return toolkit::make_error("project graph does not contain any application modules");
+        if (auto res = launch(*node); !res)
+            return res;
     }
 
-    return launch(*app_node);
+    return {};
 }
 
-/**
- * kompose [<module>:]package
- */
-[[nodiscard]] static toolkit::result<> task_package(
-    const kompose::Graph &graph,
-    const std::optional<std::string_view> &node_name)
+[[nodiscard]] static toolkit::result<> task_package(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    if (auto res = task_build(graph, node_name); !res)
-        return res;
-
-    std::cerr << "task " << node_name.value_or({}) << ":package" << std::endl;
-
-    if (node_name)
+    for (const auto *node : nodes)
     {
-        auto &node = graph[std::string(*node_name)];
+        std::cerr << "task " << node->Name << ":package" << std::endl;
 
-        // TODO: build and package the specified module
-    }
-    else
-    {
-        // TODO: build and package all modules
+        // TODO: package module as jar
     }
 
     return {};
@@ -544,7 +557,7 @@ static const args::manifest manifest;
     for (size_t i = 0; i < task_count; ++i)
         task_strings.insert(context[i]);
 
-    std::vector<std::pair<std::string_view, std::optional<std::string_view>>> tasks;
+    std::vector<TaskRequest> tasks;
     for (auto &task_string : task_strings)
     {
         auto pos = task_string.find(':');
@@ -648,37 +661,114 @@ static const args::manifest manifest;
     if (auto res = configure(work, project, modules) >> graph; !res)
         return res;
 
-    // TODO: build task graph, so that tasks are executed in right order and no duplicates happen
+    if (auto res = order_tasks(tasks) >> tasks; !res)
+        return res;
 
-    for (auto &[task, target] : tasks)
+    std::unordered_set<const kompose::Node *> clean, compile, resources, launch, package;
+
+    for (auto &[task, module] : tasks)
     {
-        static const std::unordered_map<std::string_view, std::function<toolkit::result<>(
-            const kompose::Graph &,
-            const std::optional<std::string_view> &)>> mapping
+        std::unordered_set<const kompose::Node *> nodes;
+        if (module)
         {
-            { "version", task_version },
-            { "help", task_help },
-            { "tasks", task_tasks },
-            { "clean", task_clean },
-            { "compile", task_compile },
-            { "resources", task_resources },
-            { "build", task_build },
-            { "launch", task_launch },
-            { "package", task_package },
-        };
+            auto it = graph.find(std::string(*module));
+            if (it == graph.end())
+                return toolkit::make_error("undefined module {}", *module);
 
-        toolkit::result<> res;
-        if (auto it = mapping.find(task); it != mapping.end())
-            res = it->second(graph, target);
+            const auto &node = *it;
+
+            nodes.insert(&node);
+        }
         else
-            res = toolkit::make_error(
-                "undefined task {}:{}",
-                target.value_or({}),
-                task);
+        {
+            for (const auto &node : graph)
+                nodes.insert(&node);
+        }
 
-        if (!res)
-            return res;
+        if (task == "version")
+        {
+            task_version();
+            continue;
+        }
+
+        if (task == "help")
+        {
+            task_help();
+            continue;
+        }
+
+        if (task == "clean")
+        {
+            for (const auto *node : nodes)
+                clean.insert(node);
+
+            continue;
+        }
+
+        if (task == "compile")
+        {
+            for (const auto *node : nodes)
+                compile.insert(node);
+
+            continue;
+        }
+
+        if (task == "resources")
+        {
+            for (const auto *node : nodes)
+                resources.insert(node);
+
+            continue;
+        }
+
+        if (task == "build")
+        {
+            for (const auto *node : nodes)
+            {
+                compile.insert(node);
+                resources.insert(node);
+            }
+
+            continue;
+        }
+
+        if (task == "launch")
+        {
+            for (const auto *node : nodes)
+            {
+                compile.insert(node);
+                resources.insert(node);
+                launch.insert(node);
+            }
+
+            continue;
+        }
+
+        if (task == "package")
+        {
+            for (const auto *node : nodes)
+            {
+                compile.insert(node);
+                resources.insert(node);
+                package.insert(node);
+            }
+
+            continue;
+        }
+
+        return toolkit::make_error("undefined task {}:{}", module.value_or({}), task);
     }
+
+    if (auto res = task_clean(clean); !res)
+        return res;
+    if (auto res = task_compile(compile); !res)
+        return res;
+    if (auto res = task_resources(resources); !res)
+        return res;
+    if (auto res = task_launch(launch); !res)
+        return res;
+    if (auto res = task_package(package); !res)
+        return res;
 
     return {};
 }
