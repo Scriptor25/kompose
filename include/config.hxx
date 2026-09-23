@@ -52,7 +52,6 @@ namespace kompose
         DependenciesConfig Dependencies;
         DependenciesConfig CompileDependencies;
         DependenciesConfig RuntimeDependencies;
-        DependenciesConfig TestDependencies;
     };
 
     enum class ModuleType
@@ -75,7 +74,6 @@ namespace kompose
         DependenciesConfig Dependencies;
         DependenciesConfig CompileDependencies;
         DependenciesConfig RuntimeDependencies;
-        DependenciesConfig TestDependencies;
     };
 
     struct ApplicationModuleConfig : ModuleConfig

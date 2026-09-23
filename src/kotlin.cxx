@@ -1,100 +1,95 @@
 #include <kotlin.hxx>
-
-#include <poll.h>
-#include <unistd.h>
-#include <sys/wait.h>
-
-#include <cstdlib>
+#include <process.hxx>
 
 std::vector<std::string> kompose::KotlinCommand::Build() const
 {
-    std::vector<std::string> command;
-    command.emplace_back("kotlinc");
+    std::vector<std::string> args;
+    args.emplace_back("kotlinc");
 
 #pragma region Common
 
     if (ApiVersion)
     {
-        command.emplace_back("-api-version");
-        command.push_back(*ApiVersion);
+        args.emplace_back("-api-version");
+        args.push_back(*ApiVersion);
     }
     if (KotlinHome)
     {
-        command.emplace_back("-kotlin-home");
-        command.push_back(*KotlinHome);
+        args.emplace_back("-kotlin-home");
+        args.push_back(*KotlinHome);
     }
     if (LanguageVersion)
     {
-        command.emplace_back("-language-version");
-        command.push_back(*LanguageVersion);
+        args.emplace_back("-language-version");
+        args.push_back(*LanguageVersion);
     }
     for (auto &entry : OptIn)
     {
-        command.emplace_back("-opt-in");
-        command.push_back(entry);
+        args.emplace_back("-opt-in");
+        args.push_back(entry);
     }
     for (auto &[fst, snd] : PluginOptions)
     {
-        command.emplace_back("-P");
-        command.push_back(fst + '=' + snd);
+        args.emplace_back("-P");
+        args.push_back(fst + '=' + snd);
     }
     if (Progressive)
-        command.emplace_back("-progressive");
+        args.emplace_back("-progressive");
     if (Script)
-        command.emplace_back("-script");
+        args.emplace_back("-script");
     if (Verbose)
-        command.emplace_back("-verbose");
+        args.emplace_back("-verbose");
     if (AllowContractsOnMoreFunctions)
-        command.emplace_back("-Xallow-contracts-on-more-functions");
+        args.emplace_back("-Xallow-contracts-on-more-functions");
     if (AllowConditionImpliesReturnsContracts)
-        command.emplace_back("-Xallow-condition-implies-returns-contracts");
+        args.emplace_back("-Xallow-condition-implies-returns-contracts");
     if (AllowHoldsinContract)
-        command.emplace_back("-Xallow-holdsin-contract");
+        args.emplace_back("-Xallow-holdsin-contract");
     if (AllowReturnsResultOf)
-        command.emplace_back("-Xallow-returns-result-of");
+        args.emplace_back("-Xallow-returns-result-of");
     if (AllowReifiedTypeInCatch)
-        command.emplace_back("-Xallow-reified-type-in-catch");
+        args.emplace_back("-Xallow-reified-type-in-catch");
     if (CollectionLiterals)
-        command.emplace_back("-Xcollection-literals");
+        args.emplace_back("-Xcollection-literals");
     for (auto &[fst, snd] : CompilerPluginOrder)
     {
-        command.emplace_back("-X-compiler-plugin-order");
-        command.push_back(fst + '>' + snd);
+        args.emplace_back("-X-compiler-plugin-order");
+        args.push_back(fst + '>' + snd);
     }
     if (DataFlowBasedExhaustiveness)
-        command.emplace_back("-Xdata-flow-based-exhaustiveness");
+        args.emplace_back("-Xdata-flow-based-exhaustiveness");
     if (ExplicitContextArguments)
-        command.emplace_back("-Xexplicit-context-arguments");
+        args.emplace_back("-Xexplicit-context-arguments");
     switch (KLibIrInliner)
     {
     case KotlinKLibIrInliner::None:
         break;
     case KotlinKLibIrInliner::Disabled:
-        command.emplace_back("-Xklib-ir-inliner");
-        command.emplace_back("disabled");
+        args.emplace_back("-Xklib-ir-inliner");
+        args.emplace_back("disabled");
         break;
     case KotlinKLibIrInliner::Full:
-        command.emplace_back("-Xklib-ir-inliner");
-        command.emplace_back("full");
+        args.emplace_back("-Xklib-ir-inliner");
+        args.emplace_back("full");
         break;
     }
     if (IntrinsicConstEvaluation)
-        command.emplace_back("-Xintrinsic-const-evaluation");
+        args.emplace_back("-Xintrinsic-const-evaluation");
     switch (NameBasedDestructuring)
     {
     case KotlinNameBasedDestructuring::None:
         break;
     case KotlinNameBasedDestructuring::OnlySyntax:
-        command.emplace_back("-Xname-based-destructuring");
-        command.emplace_back("only-syntax");
+        args.emplace_back("-Xname-based-destructuring");
+        args.emplace_back("only-syntax");
         break;
     case KotlinNameBasedDestructuring::NameMismatch:
-        command.emplace_back("-Xname-based-destructuring");
-        command.emplace_back("name-mismatch");
+        args.emplace_back("-Xname-based-destructuring");
+        args.emplace_back("name-mismatch");
         break;
     case KotlinNameBasedDestructuring::Complete:
-        command.emplace_back("-Xname-based-destructuring");
-        command.emplace_back("complete");
+        args.emplace_back("-Xname-based-destructuring");
+        args.emplace_back("complete");
         break;
     }
     switch (ReturnValueChecker)
@@ -102,26 +97,26 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
     case KotlinReturnValueChecker::None:
         break;
     case KotlinReturnValueChecker::Disable:
-        command.emplace_back("-Xreturn-value-checker");
-        command.emplace_back("disable");
+        args.emplace_back("-Xreturn-value-checker");
+        args.emplace_back("disable");
         break;
     case KotlinReturnValueChecker::Check:
-        command.emplace_back("-Xreturn-value-checker");
-        command.emplace_back("check");
+        args.emplace_back("-Xreturn-value-checker");
+        args.emplace_back("check");
         break;
     case KotlinReturnValueChecker::Full:
-        command.emplace_back("-Xreturn-value-checker");
-        command.emplace_back("full");
+        args.emplace_back("-Xreturn-value-checker");
+        args.emplace_back("full");
         break;
     }
     if (NoWarn)
-        command.emplace_back("-nowarn");
+        args.emplace_back("-nowarn");
     if (WError)
-        command.emplace_back("-Werror");
+        args.emplace_back("-Werror");
     if (WExtra)
-        command.emplace_back("-Wextra");
+        args.emplace_back("-Wextra");
     if (RenderInternalDiagnosticNames)
-        command.emplace_back("-Xrender-internal-diagnostic-names");
+        args.emplace_back("-Xrender-internal-diagnostic-names");
     for (auto &[fst, snd] : WarningLevel)
     {
         std::string name;
@@ -137,8 +132,8 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
             name = "disabled";
             break;
         }
-        command.emplace_back("-Xwarning-level");
-        command.push_back(fst + ':' + name);
+        args.emplace_back("-Xwarning-level");
+        args.push_back(fst + ':' + name);
     }
 
 #pragma endregion
@@ -154,61 +149,61 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
                 classpath += ':';
             classpath += *it;
         }
-        command.emplace_back("-classpath");
-        command.push_back(classpath);
+        args.emplace_back("-classpath");
+        args.push_back(classpath);
     }
     if (JvmDestination)
     {
-        command.emplace_back("-d");
-        command.push_back(*JvmDestination);
+        args.emplace_back("-d");
+        args.push_back(*JvmDestination);
     }
     if (JvmIncludeRuntime)
-        command.emplace_back("-include-runtime");
+        args.emplace_back("-include-runtime");
     if (JvmJdkHomePath)
     {
-        command.emplace_back("-jdk-home-path");
-        command.push_back(*JvmJdkHomePath);
+        args.emplace_back("-jdk-home-path");
+        args.push_back(*JvmJdkHomePath);
     }
     if (JvmJdkRelease)
     {
-        command.emplace_back("-jdk-release");
-        command.push_back(*JvmJdkRelease);
+        args.emplace_back("-jdk-release");
+        args.push_back(*JvmJdkRelease);
     }
     switch (JvmDefaultMode)
     {
     case KotlinJvmDefaultMode::None:
         break;
     case KotlinJvmDefaultMode::Enable:
-        command.emplace_back("-jvm-default-mode");
-        command.emplace_back("enable");
+        args.emplace_back("-jvm-default-mode");
+        args.emplace_back("enable");
         break;
     case KotlinJvmDefaultMode::NoCompatibility:
-        command.emplace_back("-jvm-default-mode");
-        command.emplace_back("no-compatibility");
+        args.emplace_back("-jvm-default-mode");
+        args.emplace_back("no-compatibility");
         break;
     case KotlinJvmDefaultMode::Disable:
-        command.emplace_back("-jvm-default-mode");
-        command.emplace_back("disable");
+        args.emplace_back("-jvm-default-mode");
+        args.emplace_back("disable");
         break;
     }
     if (JvmTargetVersion)
     {
-        command.emplace_back("-jvm-target-version");
-        command.push_back(*JvmTargetVersion);
+        args.emplace_back("-jvm-target-version");
+        args.push_back(*JvmTargetVersion);
     }
     if (JvmJavaParameters)
-        command.emplace_back("-java-parameters");
+        args.emplace_back("-java-parameters");
     if (JvmModuleName)
     {
-        command.emplace_back("-module-name");
-        command.push_back(*JvmModuleName);
+        args.emplace_back("-module-name");
+        args.push_back(*JvmModuleName);
     }
     if (JvmNoJdk)
-        command.emplace_back("-no-jdk");
+        args.emplace_back("-no-jdk");
     if (JvmNoReflect)
-        command.emplace_back("-no-reflect");
+        args.emplace_back("-no-reflect");
     if (JvmNoStdlib)
-        command.emplace_back("-no-stdlib");
+        args.emplace_back("-no-stdlib");
     if (!JvmScriptTemplates.empty())
     {
         std::string templates;
@@ -218,11 +213,11 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
                 templates += ':'; // TODO
             templates += *it;
         }
-        command.emplace_back("-script-templates");
-        command.push_back(templates);
+        args.emplace_back("-script-templates");
+        args.push_back(templates);
     }
     if (JvmExposeBoxed)
-        command.emplace_back("-Xjvm-expose-boxed");
+        args.emplace_back("-Xjvm-expose-boxed");
     for (auto &[fst, snd] : JvmNullabilityAnnotations)
     {
         std::string level;
@@ -238,8 +233,8 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
             level = "strict";
             break;
         }
-        command.emplace_back("-Xnullability-annotations");
-        command.push_back('@' + fst + ':' + level);
+        args.emplace_back("-Xnullability-annotations");
+        args.push_back('@' + fst + ':' + level);
     }
 
 #pragma endregion
@@ -255,64 +250,64 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
                 path += ':'; // TODO
             path += *it;
         }
-        command.emplace_back("-libraries");
-        command.push_back(path);
+        args.emplace_back("-libraries");
+        args.push_back(path);
     }
     switch (JsMain)
     {
     case KotlinJsMain::None:
         break;
     case KotlinJsMain::Call:
-        command.emplace_back("-main");
-        command.emplace_back("call");
+        args.emplace_back("-main");
+        args.emplace_back("call");
         break;
     case KotlinJsMain::NoCall:
-        command.emplace_back("-main");
-        command.emplace_back("noCall");
+        args.emplace_back("-main");
+        args.emplace_back("noCall");
         break;
     }
     if (JsMetaInfo)
-        command.emplace_back("-meta-info");
+        args.emplace_back("-meta-info");
     switch (JsModuleKind)
     {
     case KotlinJsModuleKind::None:
         break;
     case KotlinJsModuleKind::Umd:
-        command.emplace_back("-module-kind");
-        command.emplace_back("umd");
+        args.emplace_back("-module-kind");
+        args.emplace_back("umd");
         break;
     case KotlinJsModuleKind::CommonJs:
-        command.emplace_back("-module-kind");
-        command.emplace_back("commonjs");
+        args.emplace_back("-module-kind");
+        args.emplace_back("commonjs");
         break;
     case KotlinJsModuleKind::Amd:
-        command.emplace_back("-module-kind");
-        command.emplace_back("amd");
+        args.emplace_back("-module-kind");
+        args.emplace_back("amd");
         break;
     case KotlinJsModuleKind::Plain:
-        command.emplace_back("-module-kind");
-        command.emplace_back("plain");
+        args.emplace_back("-module-kind");
+        args.emplace_back("plain");
         break;
     }
     if (JsNoStdlib)
-        command.emplace_back("-no-stdlib");
+        args.emplace_back("-no-stdlib");
     if (JsOutput)
     {
-        command.emplace_back("-output");
-        command.push_back(*JsOutput);
+        args.emplace_back("-output");
+        args.push_back(*JsOutput);
     }
     if (JsOutputPostfix)
     {
-        command.emplace_back("-output-postfix");
-        command.push_back(*JsOutputPostfix);
+        args.emplace_back("-output-postfix");
+        args.push_back(*JsOutputPostfix);
     }
     if (JsOutputPrefix)
     {
-        command.emplace_back("-output-prefix");
-        command.push_back(*JsOutputPrefix);
+        args.emplace_back("-output-prefix");
+        args.push_back(*JsOutputPrefix);
     }
     if (JsSourceMap)
-        command.emplace_back("-source-map");
+        args.emplace_back("-source-map");
     if (!JsSourceMapBaseDirs.empty())
     {
         std::string dirs;
@@ -322,24 +317,24 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
                 dirs += ':'; // TODO
             dirs += *it;
         }
-        command.emplace_back("-source-map-base-dirs");
-        command.push_back(dirs);
+        args.emplace_back("-source-map-base-dirs");
+        args.push_back(dirs);
     }
     switch (JsSourceMapEmbedSources)
     {
     case KotlinJsSourceMapEmbedSources::None:
         break;
     case KotlinJsSourceMapEmbedSources::Always:
-        command.emplace_back("-source-map-embed-sources");
-        command.emplace_back("always");
+        args.emplace_back("-source-map-embed-sources");
+        args.emplace_back("always");
         break;
     case KotlinJsSourceMapEmbedSources::Never:
-        command.emplace_back("-source-map-embed-sources");
-        command.emplace_back("never");
+        args.emplace_back("-source-map-embed-sources");
+        args.emplace_back("never");
         break;
     case KotlinJsSourceMapEmbedSources::Inlining:
-        command.emplace_back("-source-map-embed-sources");
-        command.emplace_back("inlining");
+        args.emplace_back("-source-map-embed-sources");
+        args.emplace_back("inlining");
         break;
     }
     switch (JsSourceMapNamesPolicy)
@@ -347,32 +342,32 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
     case KotlinJsSourceMapNamesPolicy::None:
         break;
     case KotlinJsSourceMapNamesPolicy::SimpleNames:
-        command.emplace_back("-source-map-names-policy");
-        command.emplace_back("simple-names");
+        args.emplace_back("-source-map-names-policy");
+        args.emplace_back("simple-names");
         break;
     case KotlinJsSourceMapNamesPolicy::FullyQualifiedNames:
-        command.emplace_back("-source-map-names-policy");
-        command.emplace_back("fully-qualified-names");
+        args.emplace_back("-source-map-names-policy");
+        args.emplace_back("fully-qualified-names");
         break;
     case KotlinJsSourceMapNamesPolicy::No:
-        command.emplace_back("-source-map-names-policy");
-        command.emplace_back("no");
+        args.emplace_back("-source-map-names-policy");
+        args.emplace_back("no");
         break;
     }
     if (JsSourceMapPrefix)
     {
-        command.emplace_back("-source-map-prefix");
-        command.push_back(*JsSourceMapPrefix);
+        args.emplace_back("-source-map-prefix");
+        args.push_back(*JsSourceMapPrefix);
     }
     if (JsTarget)
     {
-        command.emplace_back("-target");
-        command.push_back(*JsTarget);
+        args.emplace_back("-target");
+        args.push_back(*JsTarget);
     }
     if (JsEnableImplementingInterfacesFromTypeScript)
-        command.emplace_back("-Xenable-implementing-interfaces-from-typescript");
+        args.emplace_back("-Xenable-implementing-interfaces-from-typescript");
     if (JsEsLongAsBigint)
-        command.emplace_back("-Xes-long-as-bigint");
+        args.emplace_back("-Xes-long-as-bigint");
 
 #pragma endregion
 
@@ -383,113 +378,14 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
 #pragma endregion
 
     for (auto &input : Input)
-        command.push_back(input);
+        args.push_back(input);
 
-    return command;
+    return args;
 }
 
 toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::string &err) const
 {
     auto args = Build();
 
-    char *argv[args.size() + 1];
-    for (size_t i = 0; i < args.size(); ++i)
-    {
-        auto &arg = args[i];
-        auto *ptr = new char[arg.size() + 1];
-        std::ranges::copy(arg, ptr);
-        ptr[arg.size()] = 0;
-        argv[i] = ptr;
-    }
-    argv[args.size()] = nullptr;
-
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-
-    if (pipe(stdout_pipe) < 0)
-        return toolkit::make_error("failed to create stdout pipe");
-
-    if (pipe(stderr_pipe) < 0)
-        return toolkit::make_error("failed to create stderr pipe");
-
-    const auto pid = fork();
-
-    if (pid < 0)
-        return toolkit::make_error("failed to fork off child process");
-
-    if (pid == 0)
-    {
-        close(stdout_pipe[0]);
-        close(stderr_pipe[0]);
-
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-        dup2(stderr_pipe[1], STDERR_FILENO);
-
-        close(stdout_pipe[1]);
-        close(stderr_pipe[1]);
-
-        execvp("kotlinc", argv);
-
-        _exit(127);
-    }
-
-    close(stdout_pipe[1]);
-    close(stderr_pipe[1]);
-
-    pollfd fds[]
-    {
-        {
-            .fd = stdout_pipe[0],
-            .events = POLLIN,
-        },
-        {
-            .fd = stderr_pipe[0],
-            .events = POLLIN,
-        },
-    };
-
-    char buffer[4096];
-
-    auto open_pipes = 2;
-    while (open_pipes > 0)
-    {
-        if (poll(fds, 2, -1) < 0)
-            break;
-
-        for (auto i = 0; i < 2; ++i)
-        {
-            if (fds[i].fd < 0)
-                continue;
-
-            if (fds[i].revents & (POLLIN | POLLHUP))
-            {
-                if (const auto n = read(fds[i].fd, buffer, sizeof(buffer)); n > 0)
-                {
-                    if (i == 0)
-                        out.append(buffer, n);
-                    else
-                        err.append(buffer, n);
-                }
-                else if (n == 0)
-                {
-                    close(fds[i].fd);
-                    fds[i].fd = -1;
-                    --open_pipes;
-                }
-            }
-        }
-    }
-
-    int status;
-    waitpid(pid, &status, 0);
-
-    if (WIFEXITED(status))
-        if (auto exit_status = WEXITSTATUS(status))
-            return toolkit::make_error("process exited with status {}", exit_status);
-
-    if (WIFSIGNALED(status))
-        if (auto terminate_signal = WTERMSIG(status))
-            return toolkit::make_error("process terminated on signal {}", terminate_signal);
-
-    return {};
+    return Process(std::move(args))(out, err);
 }

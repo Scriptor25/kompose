@@ -29,6 +29,8 @@ namespace kompose
 
     struct Node
     {
+        const SourceSet &operator[](const std::string &name) const;
+
         NodeType Type;
 
         std::string Name;
@@ -49,9 +51,25 @@ namespace kompose
 
     struct Graph
     {
+        struct iterator
+        {
+            bool operator==(const iterator &other) const;
+
+            iterator &operator++();
+
+            const Node &operator*() const;
+
+            std::unordered_map<std::string, std::unique_ptr<Node>>::const_iterator base;
+        };
+
+        const Node &operator[](const std::string &name) const;
+
+        iterator begin() const;
+        iterator end() const;
+
         std::string Name;
         std::filesystem::path Path;
 
-        std::vector<std::unique_ptr<Node>> Nodes;
+        std::unordered_map<std::string, std::unique_ptr<Node>> Nodes;
     };
 } // namespace kompose

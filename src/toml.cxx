@@ -29,7 +29,6 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
     ok &= from_data_opt(dependencies, value.Dependencies);
     ok &= from_data_opt(dependencies["compile"], value.CompileDependencies);
     ok &= from_data_opt(dependencies["runtime"], value.RuntimeDependencies);
-    ok &= from_data_opt(dependencies["test"], value.TestDependencies);
 
     return ok;
 }
@@ -64,7 +63,6 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
     ok &= from_data_opt(dependencies, config.Dependencies);
     ok &= from_data_opt(dependencies["compile"], config.CompileDependencies);
     ok &= from_data_opt(dependencies["runtime"], config.RuntimeDependencies);
-    ok &= from_data_opt(dependencies["test"], config.TestDependencies);
 
     if (type == "application")
     {

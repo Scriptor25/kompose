@@ -26,10 +26,6 @@ compile.maven = []
 runtime.modules = []
 runtime.maven = []
 
-# test-specific dependencies
-test.modules = []
-test.maven = []
-
 [library]
 # package type; default: jar
 package = "jar"

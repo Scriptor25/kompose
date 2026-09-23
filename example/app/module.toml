@@ -20,4 +20,4 @@ maven = ["com.example:example:1.2.3"]
 
 [application]
 # required!
-main = "dev.scriptor.example.MainKt"
+main = "dev.scriptor.example.app.MainKt"
