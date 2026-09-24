@@ -5,10 +5,10 @@
 #include <data/serializer.hxx>
 
 #include <filesystem>
-#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_set>
+#include <json/json.hxx>
 
 namespace kompose
 {
@@ -143,4 +143,6 @@ struct data::serializer<kompose::LibraryModulePackage>
     static bool from_data(
         const toml::node &node,
         kompose::LibraryModulePackage &value);
+
+    static void to_data(json::node &node, const kompose::LibraryModulePackage &value);
 };

@@ -6,9 +6,11 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <json/json.hxx>
 
 namespace kompose
 {
+    struct Project;
     struct Module;
 
     struct Dependency
@@ -19,6 +21,8 @@ namespace kompose
 
     struct SourceSet
     {
+        const Module *Parent;
+
         std::string Name;
         std::filesystem::path Source;
         std::filesystem::path Build;
@@ -45,6 +49,8 @@ namespace kompose
         SourceSet &operator[](const std::string &name);
         const SourceSet &operator[](const std::string &name) const;
 
+        const Project *Parent;
+
         ModuleType Type;
 
         std::string Name;
@@ -69,6 +75,7 @@ namespace kompose
             std::unordered_map<std::string, Module>::const_iterator base;
         };
 
+        Module &operator[](const std::string &name);
         const Module &operator[](const std::string &name) const;
 
         iterator find(const std::string &name) const;
@@ -82,3 +89,63 @@ namespace kompose
         std::unordered_map<std::string, Module> Modules;
     };
 } // namespace kompose
+
+template<>
+struct data::serializer<kompose::Project>
+{
+    static void to_data(json::node &node, const kompose::Project &value);
+};
+
+template<>
+struct data::serializer<kompose::Module>
+{
+    static void to_data(json::node &node, const kompose::Module &value);
+};
+
+template<>
+struct data::serializer<std::filesystem::path>
+{
+    static void to_data(json::node &node, const std::filesystem::path &value);
+};
+
+template<>
+struct data::serializer<kompose::ModuleType>
+{
+    static void to_data(json::node &node, const kompose::ModuleType &value);
+};
+
+template<>
+struct data::serializer<kompose::SourceSet>
+{
+    static void to_data(json::node &node, const kompose::SourceSet &value);
+};
+
+template<>
+struct data::serializer<kompose::ApplicationModuleData>
+{
+    static void to_data(json::node &node, const kompose::ApplicationModuleData &value);
+};
+
+template<>
+struct data::serializer<kompose::LibraryModuleData>
+{
+    static void to_data(json::node &node, const kompose::LibraryModuleData &value);
+};
+
+template<>
+struct data::serializer<kompose::Dependency>
+{
+    static void to_data(json::node &node, const kompose::Dependency &value);
+};
+
+template<>
+struct data::serializer<const kompose::SourceSet *>
+{
+    static void to_data(json::node &node, const kompose::SourceSet *value);
+};
+
+template<>
+struct data::serializer<const kompose::Module *>
+{
+    static void to_data(json::node &node, const kompose::Module *value);
+};

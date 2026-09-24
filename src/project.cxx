@@ -26,6 +26,11 @@ const kompose::Module &kompose::Project::iterator::operator*() const
     return base->second;
 }
 
+kompose::Module &kompose::Project::operator[](const std::string &name)
+{
+    return Modules[name];
+}
+
 const kompose::Module &kompose::Project::operator[](const std::string &name) const
 {
     return Modules.at(name);
