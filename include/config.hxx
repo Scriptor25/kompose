@@ -35,10 +35,17 @@ namespace kompose
         std::unordered_set<std::string> Maven;
     };
 
-    struct DependenciesConfig
+    struct DependencyConfig
     {
         std::unordered_set<std::string> Modules;
         std::unordered_set<std::string> Maven;
+    };
+
+    struct DependenciesConfig
+    {
+        DependencyConfig General;
+        DependencyConfig Compile;
+        DependencyConfig Runtime;
     };
 
     struct ProjectConfig
@@ -46,12 +53,11 @@ namespace kompose
         std::optional<std::string> Name;
 
         ProjectArtifactConfig Artifact;
-        ModulesConfig Modules;
-        RepositoriesConfig Repositories;
 
+        ModulesConfig Modules;
+
+        RepositoriesConfig Repositories;
         DependenciesConfig Dependencies;
-        DependenciesConfig CompileDependencies;
-        DependenciesConfig RuntimeDependencies;
     };
 
     enum class ModuleType
@@ -60,7 +66,7 @@ namespace kompose
         Library,
     };
 
-    struct ApplicationModuleData
+    struct ApplicationModuleConfigData
     {
         std::string Main;
         std::unordered_set<std::string> Include;
@@ -71,11 +77,16 @@ namespace kompose
         Jar,
     };
 
-    struct LibraryModuleData
+    struct LibraryModuleConfigData
     {
         LibraryModulePackage Package;
         bool IncludeSources;
         std::unordered_set<std::string> Include;
+    };
+
+    struct SourceSetConfig
+    {
+        DependenciesConfig Dependencies;
     };
 
     struct ModuleConfig
@@ -88,12 +99,11 @@ namespace kompose
         ArtifactConfig Artifact;
 
         RepositoriesConfig Repositories;
-
         DependenciesConfig Dependencies;
-        DependenciesConfig CompileDependencies;
-        DependenciesConfig RuntimeDependencies;
 
-        std::variant<ApplicationModuleData, LibraryModuleData> Data;
+        std::unordered_map<std::string, SourceSetConfig> SourceSets;
+
+        std::variant<ApplicationModuleConfigData, LibraryModuleConfigData> Data;
     };
 } // namespace kompose
 
@@ -112,11 +122,19 @@ struct data::serializer<kompose::ModuleConfig>
 };
 
 template<>
-struct data::serializer<kompose::DependenciesConfig>
+struct data::serializer<kompose::SourceSetConfig>
 {
     static bool from_data(
         const toml::node &node,
-        kompose::DependenciesConfig &value);
+        kompose::SourceSetConfig &value);
+};
+
+template<>
+struct data::serializer<kompose::DependencyConfig>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::DependencyConfig &value);
 };
 
 template<>

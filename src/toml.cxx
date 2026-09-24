@@ -26,9 +26,9 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
 
     ok &= from_data_opt(repositories["maven"], value.Repositories.Maven);
 
-    ok &= from_data_opt(dependencies, value.Dependencies);
-    ok &= from_data_opt(dependencies["compile"], value.CompileDependencies);
-    ok &= from_data_opt(dependencies["runtime"], value.RuntimeDependencies);
+    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
+    ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
 
     return ok;
 }
@@ -47,6 +47,7 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
     auto &artifact = node["artifact"];
     auto &repositories = node["repositories"];
     auto &dependencies = node["dependencies"];
+    auto &sources = node["sources"];
 
     auto ok = true;
 
@@ -58,9 +59,11 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
 
     ok &= from_data_opt(repositories["maven"], value.Repositories.Maven);
 
-    ok &= from_data_opt(dependencies, value.Dependencies);
-    ok &= from_data_opt(dependencies["compile"], value.CompileDependencies);
-    ok &= from_data_opt(dependencies["runtime"], value.RuntimeDependencies);
+    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
+    ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
+
+    ok &= from_data_opt(sources, value.SourceSets);
 
     if (type == "application")
     {
@@ -68,7 +71,7 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
 
         auto &application = node["application"];
 
-        kompose::ApplicationModuleData data;
+        kompose::ApplicationModuleConfigData data;
 
         ok &= application["main"] >> data.Main;
         ok &= from_data_opt(application["include"], data.Include, {});
@@ -83,7 +86,7 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
 
         auto &library = node["library"];
 
-        kompose::LibraryModuleData data;
+        kompose::LibraryModuleConfigData data;
 
         ok &= from_data_opt(library["package"], data.Package, kompose::LibraryModulePackage::Jar);
         ok &= from_data_opt(library["sources"], data.IncludeSources, false);
@@ -96,9 +99,30 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
     return false;
 }
 
-bool data::serializer<kompose::DependenciesConfig>::from_data(
+bool data::serializer<kompose::SourceSetConfig>::from_data(
     const toml::node &node,
-    kompose::DependenciesConfig &value)
+    kompose::SourceSetConfig &value)
+{
+    if (!node)
+        return true;
+
+    if (!node.is<toml::table>())
+        return false;
+
+    auto &dependencies = node["dependencies"];
+
+    auto ok = true;
+
+    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
+    ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
+
+    return ok;
+}
+
+bool data::serializer<kompose::DependencyConfig>::from_data(
+    const toml::node &node,
+    kompose::DependencyConfig &value)
 {
     if (!node.is<toml::table>())
         return false;

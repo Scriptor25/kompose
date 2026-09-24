@@ -18,6 +18,8 @@ modules = ["lib"]
 # maven dependencies
 maven = ["com.example:example:1.2.3"]
 
+[sources.main]
+
 [application]
 # required!
 main = "dev.scriptor.example.app.MainKt"

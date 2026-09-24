@@ -26,6 +26,8 @@ compile.maven = []
 runtime.modules = []
 runtime.maven = []
 
+[sources.main]
+
 [library]
 # package type; default: jar
 package = "jar"

@@ -3,54 +3,60 @@
 #include <config.hxx>
 
 #include <filesystem>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace kompose
 {
-    struct Node;
+    struct Module;
+
+    struct Dependency
+    {
+        std::unordered_set<const Module *> Modules;
+        std::unordered_set<std::string> Maven;
+    };
 
     struct SourceSet
     {
         std::string Name;
-        std::filesystem::path Src;
+        std::filesystem::path Source;
         std::filesystem::path Build;
 
-        std::unordered_set<const Node *> ModuleDependencies;
-        std::unordered_set<std::string> MavenDependencies;
+        Dependency Compile;
+        Dependency Runtime;
     };
 
-    struct ApplicationData
+    struct ApplicationModuleData
     {
         std::string Main;
-        std::unordered_set<const SourceSet *> IncludeSourceSets;
+        std::unordered_set<const SourceSet *> Include;
     };
 
-    struct LibraryData
+    struct LibraryModuleData
     {
         LibraryModulePackage Package;
         bool IncludeSources;
-        std::unordered_set<const SourceSet *> IncludeSourceSets;
+        std::unordered_set<const SourceSet *> Include;
     };
 
-    struct Node
+    struct Module
     {
+        SourceSet &operator[](const std::string &name);
         const SourceSet &operator[](const std::string &name) const;
 
         ModuleType Type;
 
         std::string Name;
-        std::filesystem::path Src;
+        std::filesystem::path Source;
         std::filesystem::path Build;
 
         std::unordered_map<std::string, SourceSet> SourceSets;
 
-        std::variant<ApplicationData, LibraryData> Data;
+        std::variant<ApplicationModuleData, LibraryModuleData> Data;
     };
 
-    struct Graph
+    struct Project
     {
         struct iterator
         {
@@ -58,12 +64,12 @@ namespace kompose
 
             iterator &operator++();
 
-            const Node &operator*() const;
+            const Module &operator*() const;
 
-            std::unordered_map<std::string, Node>::const_iterator base;
+            std::unordered_map<std::string, Module>::const_iterator base;
         };
 
-        const Node &operator[](const std::string &name) const;
+        const Module &operator[](const std::string &name) const;
 
         iterator find(const std::string &name) const;
 
@@ -73,6 +79,6 @@ namespace kompose
         std::string Name;
         std::filesystem::path Path;
 
-        std::unordered_map<std::string, Node> Nodes;
+        std::unordered_map<std::string, Module> Modules;
     };
 } // namespace kompose
