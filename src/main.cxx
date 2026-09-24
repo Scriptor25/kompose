@@ -628,6 +628,9 @@ static const args::manifest manifest;
     if (auto res = build_graph(work, project, module_configs) >> graph; !res)
         return res;
 
+    // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
+    // TODO: same if already packaged and neither source files nor resources did change, then do not package again
+
     std::unordered_set<const kompose::Module *> clean, compile, launch, package;
     for (auto &[task, module_name] : tasks)
     {
