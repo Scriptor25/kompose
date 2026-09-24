@@ -31,3 +31,4 @@ runtime.maven = []
 package = "jar"
 # generate source package; default: false
 sources = true
+include = ["main"]

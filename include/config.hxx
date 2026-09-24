@@ -60,6 +60,24 @@ namespace kompose
         Library,
     };
 
+    struct ApplicationModuleData
+    {
+        std::string Main;
+        std::unordered_set<std::string> Include;
+    };
+
+    enum class LibraryModulePackage
+    {
+        Jar,
+    };
+
+    struct LibraryModuleData
+    {
+        LibraryModulePackage Package;
+        bool IncludeSources;
+        std::unordered_set<std::string> Include;
+    };
+
     struct ModuleConfig
     {
         std::filesystem::path Root;
@@ -74,22 +92,8 @@ namespace kompose
         DependenciesConfig Dependencies;
         DependenciesConfig CompileDependencies;
         DependenciesConfig RuntimeDependencies;
-    };
 
-    struct ApplicationModuleConfig : ModuleConfig
-    {
-        std::string Main;
-    };
-
-    enum class LibraryModulePackage
-    {
-        Jar,
-    };
-
-    struct LibraryModuleConfig : ModuleConfig
-    {
-        LibraryModulePackage Package;
-        bool Sources;
+        std::variant<ApplicationModuleData, LibraryModuleData> Data;
     };
 } // namespace kompose
 
@@ -100,11 +104,11 @@ struct data::serializer<kompose::ProjectConfig>
 };
 
 template<>
-struct data::serializer<std::unique_ptr<kompose::ModuleConfig>>
+struct data::serializer<kompose::ModuleConfig>
 {
     static bool from_data(
         const toml::node &node,
-        std::unique_ptr<kompose::ModuleConfig> &value);
+        kompose::ModuleConfig &value);
 };
 
 template<>

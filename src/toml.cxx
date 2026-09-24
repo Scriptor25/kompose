@@ -22,7 +22,7 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
     ok &= artifact["group"] >> value.Artifact.Group;
     ok &= artifact["version"] >> value.Artifact.Version;
 
-    ok &= from_data_opt(modules["include"], value.Modules.Include);
+    ok &= from_data_opt(modules["include"], value.Modules.Include, {});
 
     ok &= from_data_opt(repositories["maven"], value.Repositories.Maven);
 
@@ -33,9 +33,9 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
     return ok;
 }
 
-bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
+bool data::serializer<kompose::ModuleConfig>::from_data(
     const toml::node &node,
-    std::unique_ptr<kompose::ModuleConfig> &value)
+    kompose::ModuleConfig &value)
 {
     if (!node.is<toml::table>())
         return false;
@@ -48,47 +48,48 @@ bool data::serializer<std::unique_ptr<kompose::ModuleConfig>>::from_data(
     auto &repositories = node["repositories"];
     auto &dependencies = node["dependencies"];
 
-    kompose::ModuleConfig config;
-
     auto ok = true;
 
-    ok &= node["name"] >> config.Name;
+    ok &= node["name"] >> value.Name;
 
-    ok &= artifact["group"] >> config.Artifact.Group;
-    ok &= artifact["name"] >> config.Artifact.Name;
-    ok &= artifact["version"] >> config.Artifact.Version;
+    ok &= artifact["group"] >> value.Artifact.Group;
+    ok &= artifact["name"] >> value.Artifact.Name;
+    ok &= artifact["version"] >> value.Artifact.Version;
 
-    ok &= from_data_opt(repositories["maven"], config.Repositories.Maven);
+    ok &= from_data_opt(repositories["maven"], value.Repositories.Maven);
 
-    ok &= from_data_opt(dependencies, config.Dependencies);
-    ok &= from_data_opt(dependencies["compile"], config.CompileDependencies);
-    ok &= from_data_opt(dependencies["runtime"], config.RuntimeDependencies);
+    ok &= from_data_opt(dependencies, value.Dependencies);
+    ok &= from_data_opt(dependencies["compile"], value.CompileDependencies);
+    ok &= from_data_opt(dependencies["runtime"], value.RuntimeDependencies);
 
     if (type == "application")
     {
-        kompose::ApplicationModuleConfig application_config(config);
-        application_config.Type = kompose::ModuleType::Application;
+        value.Type = kompose::ModuleType::Application;
 
         auto &application = node["application"];
 
-        ok &= application["main"] >> application_config.Main;
+        kompose::ApplicationModuleData data;
 
-        value = std::make_unique<kompose::ApplicationModuleConfig>(std::move(application_config));
+        ok &= application["main"] >> data.Main;
+        ok &= from_data_opt(application["include"], data.Include, {});
+
+        value.Data = std::move(data);
         return ok;
     }
 
     if (type == "library")
     {
-        kompose::LibraryModuleConfig library_config(config);
-        library_config.Type = kompose::ModuleType::Library;
+        value.Type = kompose::ModuleType::Library;
 
         auto &library = node["library"];
 
-        ok &= from_data_opt(library["package"], library_config.Package, kompose::LibraryModulePackage::Jar);
-        ok &= from_data_opt(library["sources"], library_config.Sources, false);
+        kompose::LibraryModuleData data;
 
-        value = std::make_unique<kompose::LibraryModuleConfig>(
-            std::move(library_config));
+        ok &= from_data_opt(library["package"], data.Package, kompose::LibraryModulePackage::Jar);
+        ok &= from_data_opt(library["sources"], data.IncludeSources, false);
+        ok &= from_data_opt(library["include"], data.Include, {});
+
+        value.Data = std::move(data);
         return ok;
     }
 

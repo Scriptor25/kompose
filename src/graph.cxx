@@ -18,12 +18,12 @@ kompose::Graph::iterator &kompose::Graph::iterator::operator++()
 
 const kompose::Node &kompose::Graph::iterator::operator*() const
 {
-    return *base->second;
+    return base->second;
 }
 
 const kompose::Node &kompose::Graph::operator[](const std::string &name) const
 {
-    return *Nodes.at(name);
+    return Nodes.at(name);
 }
 
 kompose::Graph::iterator kompose::Graph::find(const std::string &name) const

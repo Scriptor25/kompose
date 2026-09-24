@@ -1,5 +1,7 @@
 #pragma once
 
+#include <config.hxx>
+
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -20,32 +22,32 @@ namespace kompose
         std::unordered_set<std::string> MavenDependencies;
     };
 
-    enum class NodeType
+    struct ApplicationData
     {
-        Application,
-        Library,
+        std::string Main;
+        std::unordered_set<const SourceSet *> IncludeSourceSets;
+    };
+
+    struct LibraryData
+    {
+        LibraryModulePackage Package;
+        bool IncludeSources;
+        std::unordered_set<const SourceSet *> IncludeSourceSets;
     };
 
     struct Node
     {
         const SourceSet &operator[](const std::string &name) const;
 
-        NodeType Type;
+        ModuleType Type;
 
         std::string Name;
         std::filesystem::path Src;
         std::filesystem::path Build;
 
         std::unordered_map<std::string, SourceSet> SourceSets;
-    };
 
-    struct ApplicationNode : Node
-    {
-        std::string Main;
-    };
-
-    struct LibraryNode : Node
-    {
+        std::variant<ApplicationData, LibraryData> Data;
     };
 
     struct Graph
@@ -58,7 +60,7 @@ namespace kompose
 
             const Node &operator*() const;
 
-            std::unordered_map<std::string, std::unique_ptr<Node>>::const_iterator base;
+            std::unordered_map<std::string, Node>::const_iterator base;
         };
 
         const Node &operator[](const std::string &name) const;
@@ -71,6 +73,6 @@ namespace kompose
         std::string Name;
         std::filesystem::path Path;
 
-        std::unordered_map<std::string, std::unique_ptr<Node>> Nodes;
+        std::unordered_map<std::string, Node> Nodes;
     };
 } // namespace kompose

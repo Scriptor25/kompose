@@ -41,20 +41,20 @@
 [[nodiscard]] static toolkit::result<kompose::Graph> build_graph(
     const std::filesystem::path &path,
     const kompose::ProjectConfig &project,
-    const std::vector<std::unique_ptr<kompose::ModuleConfig>> &modules)
+    const std::vector<kompose::ModuleConfig> &modules)
 {
-    std::unordered_map<std::string, std::unique_ptr<kompose::Node>> nodes(modules.size());
+    std::unordered_map<std::string, kompose::Node> nodes(modules.size());
 
     for (const auto &mod : modules)
     {
-        auto &node = nodes[*mod->Name];
+        auto &node = nodes[*mod.Name];
 
-        const auto src = mod->Root / "src";
-        const auto build = path / "build" / *mod->Name;
+        const auto src = mod.Root / "src";
+        const auto build = path / "build" / *mod.Name;
 
-        kompose::Node base_node
-        {
-            .Name = *mod->Name,
+        node = {
+            .Type = mod.Type,
+            .Name = *mod.Name,
             .Src = src,
             .Build = build,
             .SourceSets = source_sets(
@@ -63,28 +63,46 @@
                 { "main" }),
         };
 
-        switch (mod->Type)
+        switch (mod.Type)
         {
         case kompose::ModuleType::Application:
         {
-            const auto &application_module = reinterpret_cast<const kompose::ApplicationModuleConfig &>(*mod);
+            const auto &module_data = get<kompose::ApplicationModuleData>(mod.Data);
 
-            kompose::ApplicationNode application_node(base_node);
-            application_node.Type = kompose::NodeType::Application;
-            application_node.Main = application_module.Main;
+            kompose::ApplicationData data
+            {
+                .Main = module_data.Main,
+            };
 
-            node = std::make_unique<kompose::ApplicationNode>(application_node);
+            for (auto &include : module_data.Include)
+            {
+                auto &it = node[include];
+
+                data.IncludeSourceSets.insert(&it);
+            }
+
+            node.Data = data;
             break;
         }
 
         case kompose::ModuleType::Library:
         {
-            const auto &library_module = reinterpret_cast<const kompose::LibraryModuleConfig &>(*mod);
+            const auto &module_data = get<kompose::LibraryModuleData>(mod.Data);
 
-            kompose::LibraryNode library_node(base_node);
-            library_node.Type = kompose::NodeType::Library;
+            kompose::LibraryData data
+            {
+                .Package = module_data.Package,
+                .IncludeSources = module_data.IncludeSources,
+            };
 
-            node = std::make_unique<kompose::LibraryNode>(library_node);
+            for (auto &include : module_data.Include)
+            {
+                auto &it = node[include];
+
+                data.IncludeSourceSets.insert(&it);
+            }
+
+            node.Data = data;
             break;
         }
         }
@@ -92,22 +110,22 @@
 
     for (const auto &mod : modules)
     {
-        auto &node = nodes[*mod->Name];
+        auto &node = nodes[*mod.Name];
 
         std::unordered_set<const kompose::Node *> module_dependencies;
         std::unordered_set<std::string> maven_dependencies;
 
-        for (const auto &dependency : mod->Dependencies.Modules)
-            module_dependencies.insert(nodes[dependency].get());
-        for (const auto &dependency : mod->Dependencies.Maven)
+        for (const auto &dependency : mod.Dependencies.Modules)
+            module_dependencies.insert(&nodes[dependency]);
+        for (const auto &dependency : mod.Dependencies.Maven)
             maven_dependencies.insert(dependency);
 
-        for (const auto &dependency : mod->CompileDependencies.Modules)
-            module_dependencies.insert(nodes[dependency].get());
-        for (const auto &dependency : mod->CompileDependencies.Maven)
+        for (const auto &dependency : mod.CompileDependencies.Modules)
+            module_dependencies.insert(&nodes[dependency]);
+        for (const auto &dependency : mod.CompileDependencies.Maven)
             maven_dependencies.insert(dependency);
 
-        for (auto &source_set : node->SourceSets | std::views::values)
+        for (auto &source_set : node.SourceSets | std::views::values)
         {
             source_set.ModuleDependencies = module_dependencies;
             source_set.MavenDependencies = maven_dependencies;
@@ -205,11 +223,11 @@
 
     switch (node.Type)
     {
-    case kompose::NodeType::Application:
+    case kompose::ModuleType::Application:
         command.JvmIncludeRuntime = true;
         break;
 
-    case kompose::NodeType::Library:
+    case kompose::ModuleType::Library:
         break;
     }
 
@@ -228,15 +246,15 @@
 {
     switch (node.Type)
     {
-    case kompose::NodeType::Application:
+    case kompose::ModuleType::Application:
         break;
 
     default:
         return toolkit::make_error("node type does not support task :launch");
     }
 
-    const auto &application_node = reinterpret_cast<const kompose::ApplicationNode &>(node);
-    const auto &main_class = application_node.Main;
+    const auto &data = get<kompose::ApplicationData>(node.Data);
+    const auto &main_class = data.Main;
 
     std::unordered_set<const kompose::Node *> module_dependencies;
     std::unordered_set<std::string> maven_dependencies;
@@ -263,6 +281,7 @@
     {
         auto &source_set = dependency->SourceSets.at("main");
         class_path.emplace_back(source_set.Build / "classes");
+        class_path.emplace_back(source_set.Src / "resources");
     }
 
     for (const auto &dependency : maven_dependencies)
@@ -367,52 +386,11 @@ static void task_help()
     return {};
 }
 
-[[nodiscard]] static toolkit::result<> task_resources(const std::unordered_set<const kompose::Node *> &nodes)
-{
-    for (const auto *node : nodes)
-    {
-        std::cerr << "task " << node->Name << ":resources" << std::endl;
-
-        const auto &source_set = (*node)["main"];
-
-        for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Src / "resources"))
-        {
-            if (entry.is_directory())
-                continue;
-
-            const auto &from = entry.path();
-            const auto to = source_set.Build / "classes" / std::filesystem::relative(entry.path(), source_set.Src);
-
-            if (std::error_code ec; std::filesystem::create_directories(to.parent_path(), ec), ec)
-                return toolkit::make_error(
-                    "failed to create directory '{}': {} ({})",
-                    to.parent_path().string(),
-                    ec.message(),
-                    ec.value());
-
-            if (std::error_code ec;
-                std::filesystem::copy_file(
-                    from,
-                    to,
-                    std::filesystem::copy_options::overwrite_existing,
-                    ec), ec)
-                return toolkit::make_error(
-                    "failed to copy file from '{}' to '{}': {} ({})",
-                    from.string(),
-                    to.string(),
-                    ec.message(),
-                    ec.value());
-        }
-    }
-
-    return {};
-}
-
 [[nodiscard]] static toolkit::result<> task_launch(const std::unordered_set<const kompose::Node *> &nodes)
 {
     for (const auto *node : nodes)
     {
-        if (node->Type != kompose::NodeType::Application)
+        if (node->Type != kompose::ModuleType::Application)
             continue;
 
         std::cerr << "task " << node->Name << ":launch" << std::endl;
@@ -430,7 +408,76 @@ static void task_help()
     {
         std::cerr << "task " << node->Name << ":package" << std::endl;
 
-        // TODO: package module as jar
+        auto output_file = node->Build / "bundle.jar";
+
+        std::vector<std::string> args
+        {
+            "jar",
+            "-c",
+            "-f",
+            output_file,
+        };
+
+        std::unordered_set<const kompose::SourceSet *> source_sets;
+        bool include_sources;
+
+        switch (node->Type)
+        {
+        case kompose::ModuleType::Application:
+        {
+            const auto &data = get<kompose::ApplicationData>(node->Data);
+
+            source_sets = data.IncludeSourceSets;
+            include_sources = false;
+
+            args.emplace_back("-e");
+            args.push_back(data.Main);
+
+            break;
+        }
+
+        case kompose::ModuleType::Library:
+        {
+            const auto &data = get<kompose::LibraryData>(node->Data);
+
+            source_sets = data.IncludeSourceSets;
+            include_sources = data.IncludeSources;
+
+            break;
+        }
+        }
+
+        for (const auto *source_set : source_sets)
+        {
+            auto classes_directory = source_set->Build / "classes";
+
+            args.emplace_back("-C");
+            args.push_back(classes_directory);
+            args.emplace_back(".");
+
+            auto resources_directory = source_set->Src / "resources";
+
+            args.emplace_back("-C");
+            args.push_back(resources_directory);
+            args.emplace_back(".");
+
+            if (include_sources)
+            {
+                auto sources_directory = source_set->Src / "kotlin";
+
+                args.emplace_back("-C");
+                args.push_back(sources_directory);
+                args.emplace_back(".");
+            }
+        }
+
+        std::string out, err;
+        if (auto res = kompose::Process(std::move(args))(out, err); !res)
+        {
+            std::cout << out;
+            std::cerr << err;
+            return res;
+        }
     }
 
     return {};
@@ -489,7 +536,7 @@ static const args::manifest manifest;
     if (!project.Name)
         project.Name = work.filename();
 
-    std::vector<std::unique_ptr<kompose::ModuleConfig>> modules;
+    std::vector<kompose::ModuleConfig> modules;
     for (auto &name : project.Modules.Include)
     {
         if (!std::filesystem::is_directory(name))
@@ -508,47 +555,47 @@ static const args::manifest manifest;
         toml::node module_node;
         std::ifstream(module_toml) >> module_node;
 
-        std::unique_ptr<kompose::ModuleConfig> mod;
+        kompose::ModuleConfig mod;
         if (!(module_node >> mod))
         {
             std::cerr << "skip module '" << name << "': failed to parse module.toml" << std::endl;
             continue;
         }
 
-        mod->Root = work / name;
+        mod.Root = work / name;
 
-        if (!mod->Name)
-            mod->Name = name;
+        if (!mod.Name)
+            mod.Name = name;
 
-        if (!mod->Artifact.Name)
-            mod->Artifact.Name = mod->Name;
+        if (!mod.Artifact.Name)
+            mod.Artifact.Name = mod.Name;
 
-        if (!mod->Artifact.Group)
-            mod->Artifact.Group = project.Artifact.Group;
+        if (!mod.Artifact.Group)
+            mod.Artifact.Group = project.Artifact.Group;
 
-        if (!mod->Artifact.Version)
-            mod->Artifact.Version = project.Artifact.Version;
+        if (!mod.Artifact.Version)
+            mod.Artifact.Version = project.Artifact.Version;
 
         for (auto &entry : project.Repositories.Maven)
-            mod->Repositories.Maven.insert(entry);
+            mod.Repositories.Maven.insert(entry);
 
         for (auto &entry : project.Dependencies.Modules)
-            mod->Dependencies.Modules.insert(entry);
+            mod.Dependencies.Modules.insert(entry);
 
         for (auto &entry : project.Dependencies.Maven)
-            mod->Dependencies.Maven.insert(entry);
+            mod.Dependencies.Maven.insert(entry);
 
         for (auto &entry : project.CompileDependencies.Modules)
-            mod->CompileDependencies.Modules.insert(entry);
+            mod.CompileDependencies.Modules.insert(entry);
 
         for (auto &entry : project.CompileDependencies.Maven)
-            mod->CompileDependencies.Maven.insert(entry);
+            mod.CompileDependencies.Maven.insert(entry);
 
         for (auto &entry : project.RuntimeDependencies.Modules)
-            mod->RuntimeDependencies.Modules.insert(entry);
+            mod.RuntimeDependencies.Modules.insert(entry);
 
         for (auto &entry : project.RuntimeDependencies.Maven)
-            mod->RuntimeDependencies.Maven.insert(entry);
+            mod.RuntimeDependencies.Maven.insert(entry);
 
         modules.push_back(std::move(mod));
     }
@@ -557,7 +604,7 @@ static const args::manifest manifest;
     if (auto res = build_graph(work, project, modules) >> graph; !res)
         return res;
 
-    std::unordered_set<const kompose::Node *> clean, compile, resources, launch, package;
+    std::unordered_set<const kompose::Node *> clean, compile, launch, package;
     for (auto &[task, module] : tasks)
     {
         std::unordered_set<const kompose::Node *> nodes;
@@ -620,21 +667,10 @@ static const args::manifest manifest;
             continue;
         }
 
-        if (task == "resources")
-        {
-            for (const auto *node : nodes_with_dependencies)
-                resources.insert(node);
-
-            continue;
-        }
-
         if (task == "build")
         {
             for (const auto *node : nodes_with_dependencies)
-            {
                 compile.insert(node);
-                resources.insert(node);
-            }
 
             continue;
         }
@@ -642,10 +678,7 @@ static const args::manifest manifest;
         if (task == "launch")
         {
             for (const auto *node : nodes_with_dependencies)
-            {
                 compile.insert(node);
-                resources.insert(node);
-            }
 
             for (const auto *node : nodes)
                 launch.insert(node);
@@ -656,10 +689,7 @@ static const args::manifest manifest;
         if (task == "package")
         {
             for (const auto *node : nodes_with_dependencies)
-            {
                 compile.insert(node);
-                resources.insert(node);
-            }
 
             for (const auto *node : nodes)
                 package.insert(node);
@@ -673,8 +703,6 @@ static const args::manifest manifest;
     if (auto res = task_clean(clean); !res)
         return res;
     if (auto res = task_compile(compile); !res)
-        return res;
-    if (auto res = task_resources(resources); !res)
         return res;
     if (auto res = task_launch(launch); !res)
         return res;
