@@ -124,29 +124,47 @@
     return graph;
 }
 
-[[nodiscard]] static std::vector<const kompose::Node *> build_compile_path(
+[[nodiscard]] static toolkit::result<std::vector<const kompose::Node *>> topological_sort(
     const std::unordered_set<const kompose::Node *> &nodes)
 {
-    std::queue<const kompose::Node *> queue;
+    std::unordered_map<const kompose::Node *, size_t> in_degree;
+    std::unordered_map<const kompose::Node *, std::unordered_set<const kompose::Node *>> dependents;
+
     for (const auto *node : nodes)
-        queue.push(node);
+        in_degree[node] = {};
 
-    std::unordered_set<const kompose::Node *> compiled;
-    std::vector<const kompose::Node *> compile_path;
-    for (; !queue.empty(); queue.pop())
+    for (const auto *node : nodes)
+        for (const auto *dependency : (*node)["main"].ModuleDependencies)
+        {
+            if (!nodes.contains(dependency))
+                continue;
+
+            ++in_degree[node];
+            dependents[dependency].insert(node);
+        }
+
+    std::queue<const kompose::Node *> ready;
+    for (const auto *node : nodes)
+        if (!in_degree[node])
+            ready.push(node);
+
+    std::vector<const kompose::Node *> path;
+    path.reserve(nodes.size());
+
+    for (; !ready.empty(); ready.pop())
     {
-        const auto *node = queue.front();
-        if (!compiled.insert(node).second)
-            continue;
+        const auto *node = ready.front();
+        path.push_back(node);
 
-        compile_path.push_back(node);
-
-        const auto &source_set = (*node)["main"];
-        for (const auto *dependency : source_set.ModuleDependencies)
-            queue.push(dependency);
+        for (const auto *dependent : dependents[node])
+            if (!--in_degree[dependent])
+                ready.push(dependent);
     }
 
-    return { compile_path.rbegin(), compile_path.rend() };
+    if (path.size() != nodes.size())
+        return toolkit::make_error("cyclic dependencies detected");
+
+    return path;
 }
 
 [[nodiscard]] static toolkit::result<> compile(
@@ -291,131 +309,11 @@
 //  launch  -> build
 //  package -> build
 
-namespace
+struct Task
 {
-    struct Task
-    {
-        size_t Order;
-        std::unordered_set<std::string_view> Dependencies;
-    };
-
-    struct TaskRequest
-    {
-        std::string_view Task;
-        std::optional<std::string_view> Module;
-    };
-
-    struct TaskEntry
-    {
-        size_t Order;
-        std::string_view Task;
-    };
-}
-
-static const std::unordered_map<std::string_view, Task> task_graph
-{
-    { "version", { .Order = 0, .Dependencies = {} } },
-    { "help", { .Order = 1, .Dependencies = {} } },
-    { "clean", { .Order = 2, .Dependencies = {} } },
-    { "compile", { .Order = 3, .Dependencies = {} } },
-    { "resources", { .Order = 4, .Dependencies = {} } },
-    { "build", { .Order = 5, .Dependencies = { "compile", "resources" } } },
-    { "launch", { .Order = 6, .Dependencies = { "build" } } },
-    { "package", { .Order = 7, .Dependencies = { "build" } } },
+    std::string_view Name;
+    std::optional<std::string_view> Module;
 };
-
-[[nodiscard]] static toolkit::result<std::unordered_set<std::string_view>> collect_required(
-    const std::vector<TaskRequest> &requests)
-{
-    std::unordered_set<std::string_view> required;
-
-    std::queue<TaskRequest> queue;
-    for (const auto &request : requests)
-        queue.push(request);
-    for (; !queue.empty(); queue.pop())
-    {
-        const auto &request = queue.front();
-        if (!required.insert(request.Task).second)
-            continue;
-
-        auto it = task_graph.find(request.Task);
-        if (it == task_graph.end())
-            return toolkit::make_error("undefined task {}:{}", request.Module.value_or({}), request.Task);
-
-        const auto &task = it->second;
-        for (const auto dependency : task.Dependencies)
-            queue.push({ .Task = dependency, .Module = request.Module });
-    }
-
-    return required;
-}
-
-[[nodiscard]] static toolkit::result<std::vector<TaskRequest>> order_tasks(const std::vector<TaskRequest> &requests)
-{
-    std::unordered_set<std::string_view> required;
-    if (auto res = collect_required(requests) >> required; !res)
-        return res;
-
-    std::unordered_map<std::string_view, size_t> in_degree;
-    std::unordered_map<std::string_view, std::vector<std::string_view>> dependents;
-
-    for (const auto name : required)
-        in_degree[name] = {};
-
-    for (const auto name : required)
-    {
-        const auto &task = task_graph.at(name);
-
-        for (const auto dependency : task.Dependencies)
-        {
-            if (!required.contains(dependency))
-                continue;
-
-            ++in_degree[name];
-
-            dependents[dependency].push_back(name);
-        }
-    }
-
-    auto compare_task_entry = [](const TaskEntry &a, const TaskEntry &b)
-    {
-        return a.Order != b.Order ? a.Order > b.Order : a.Task > b.Task;
-    };
-
-    std::priority_queue<TaskEntry, std::vector<TaskEntry>, decltype(compare_task_entry)> entries(compare_task_entry);
-
-    for (const auto &[name, degree] : in_degree)
-        if (!degree)
-            entries.emplace(task_graph.at(name).Order, name);
-
-    std::unordered_map<std::string_view, std::vector<std::optional<std::string_view>>> arguments;
-    for (const auto &[task, module] : requests)
-        arguments[task].push_back(module);
-
-    std::vector<TaskRequest> result;
-    result.reserve(requests.size());
-
-    while (!entries.empty())
-    {
-        const auto [_, name] = entries.top();
-        entries.pop();
-
-        for (const auto &module : arguments[name])
-            result.emplace_back(name, module);
-
-        for (const auto dependent : dependents[name])
-        {
-            auto &degree = in_degree.at(dependent);
-
-            --degree;
-
-            if (!degree)
-                entries.emplace(task_graph.at(name).Order, dependent);
-        }
-    }
-
-    return result;
-}
 
 static void task_version()
 {
@@ -452,7 +350,9 @@ static void task_help()
 
 [[nodiscard]] static toolkit::result<> task_compile(const std::unordered_set<const kompose::Node *> &nodes)
 {
-    const auto path = build_compile_path(nodes);
+    std::vector<const kompose::Node *> path;
+    if (auto res = topological_sort(nodes) >> path; !res)
+        return res;
 
     for (const auto *node : path)
     {
@@ -553,7 +453,7 @@ static const args::manifest manifest;
     for (size_t i = 0; i < task_count; ++i)
         task_strings.insert(context[i]);
 
-    std::vector<TaskRequest> tasks;
+    std::vector<Task> tasks;
     for (auto &task_string : task_strings)
     {
         auto pos = task_string.find(':');
@@ -657,11 +557,7 @@ static const args::manifest manifest;
     if (auto res = build_graph(work, project, modules) >> graph; !res)
         return res;
 
-    if (auto res = order_tasks(tasks) >> tasks; !res)
-        return res;
-
     std::unordered_set<const kompose::Node *> clean, compile, resources, launch, package;
-
     for (auto &[task, module] : tasks)
     {
         std::unordered_set<const kompose::Node *> nodes;
