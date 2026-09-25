@@ -12,6 +12,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <kompose.hxx>
 #include <memory>
 #include <queue>
 #include <ranges>
@@ -156,193 +157,6 @@
     return project;
 }
 
-[[nodiscard]] static toolkit::result<std::vector<const kompose::Module *>> topological_sort(
-    const std::unordered_set<const kompose::Module *> &nodes)
-{
-    std::unordered_map<const kompose::Module *, size_t> in_degree;
-    std::unordered_map<const kompose::Module *, std::unordered_set<const kompose::Module *>> dependents;
-
-    for (const auto *node : nodes)
-        in_degree[node] = {};
-
-    for (const auto *node : nodes)
-    {
-        // TODO: determine source sets for dependencies
-        const auto &source_set = (*node)["main"];
-
-        for (const auto *dependency : source_set.Compile.Modules)
-        {
-            if (!nodes.contains(dependency))
-                continue;
-
-            ++in_degree[node];
-            dependents[dependency].insert(node);
-        }
-    }
-
-    std::queue<const kompose::Module *> ready;
-    for (const auto *node : nodes)
-        if (!in_degree[node])
-            ready.push(node);
-
-    std::vector<const kompose::Module *> path;
-    path.reserve(nodes.size());
-
-    for (; !ready.empty(); ready.pop())
-    {
-        const auto *node = ready.front();
-        path.push_back(node);
-
-        for (const auto *dependent : dependents[node])
-            if (!--in_degree[dependent])
-                ready.push(dependent);
-    }
-
-    if (path.size() != nodes.size())
-        return toolkit::make_error("cyclic dependencies detected");
-
-    return path;
-}
-
-[[nodiscard]] static toolkit::result<> compile(
-    const kompose::Module &node,
-    const kompose::SourceSet &source_set)
-{
-    std::unordered_set<std::string> sources;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Source / "kotlin"))
-    {
-        if (entry.is_directory())
-            continue;
-
-        const auto &path = entry.path();
-        if (!path.has_extension() || path.extension() != ".kt")
-            continue;
-
-        sources.insert(path);
-    }
-
-    const auto destination = source_set.Build / "classes";
-
-    std::filesystem::create_directories(destination);
-
-    std::unordered_set<std::string> class_path;
-    for (const auto *dependency : source_set.Compile.Modules)
-    {
-        // TODO: determine source sets for dependencies
-        const auto &dependency_source_set = (*dependency)["main"];
-
-        class_path.insert(dependency_source_set.Build / "classes");
-    }
-
-    kompose::KotlinCommand command
-    {
-        .Input = std::move(sources),
-        .JvmClassPath = std::move(class_path),
-        .JvmDestination = destination.string(),
-        .JvmModuleName = node.Name,
-    };
-
-    switch (node.Type)
-    {
-    case kompose::ModuleType::Application:
-        command.JvmIncludeRuntime = true;
-        break;
-
-    case kompose::ModuleType::Library:
-        break;
-    }
-
-    std::string out, err;
-    if (auto res = command(out, err); !res)
-    {
-        std::cout << out;
-        std::cerr << err;
-        return res;
-    }
-
-    return {};
-}
-
-[[nodiscard]] static toolkit::result<> launch(const kompose::Module &node)
-{
-    switch (node.Type)
-    {
-    case kompose::ModuleType::Application:
-        break;
-
-    default:
-        return toolkit::make_error("node type does not support task :launch");
-    }
-
-    const auto &data = get<kompose::ApplicationModuleData>(node.Data);
-    const auto &main_class = data.Main;
-
-    std::unordered_set<const kompose::Module *> module_dependencies;
-    std::unordered_set<std::string> maven_dependencies;
-
-    std::queue<const kompose::Module *> queue;
-    queue.push(&node);
-    for (; !queue.empty(); queue.pop())
-    {
-        const auto *next = queue.front();
-
-        // TODO: determine source sets for dependencies
-        const auto &source_set = (*next)["main"];
-
-        module_dependencies.insert(next);
-
-        for (const auto *dependency : source_set.Runtime.Modules)
-            queue.push(dependency);
-
-        for (const auto &dependency : source_set.Runtime.Maven)
-            maven_dependencies.insert(dependency);
-    }
-
-    std::vector<std::string> class_path;
-
-    for (const auto *dependency : module_dependencies)
-    {
-        // TODO: determine source sets for dependencies
-        auto &source_set = (*dependency)["main"];
-
-        class_path.emplace_back(source_set.Build / "classes");
-        class_path.emplace_back(source_set.Source / "resources");
-    }
-
-    for (const auto &dependency : maven_dependencies)
-    {
-        // TODO: resolve maven dependency, add to class path
-    }
-
-    const auto *kotlin_home = getenv("KOTLIN_HOME");
-    if (!kotlin_home)
-        return toolkit::make_error("missing KOTLIN_HOME environment variable");
-
-    class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
-
-    std::string class_path_string;
-    for (auto it = class_path.begin(); it != class_path.end(); ++it)
-    {
-        if (it != class_path.begin())
-            class_path_string += ':';
-        class_path_string += *it;
-    }
-
-    std::vector<std::string> args;
-    args.emplace_back("java");
-    args.emplace_back("--class-path");
-    args.push_back(class_path_string);
-    args.push_back(main_class);
-
-    std::string out, err;
-    auto res = kompose::Process(std::move(args))(out, err);
-
-    std::cout << out;
-    std::cerr << err;
-
-    return res;
-}
-
 // tasks:
 //  version
 //  help
@@ -361,14 +175,14 @@ struct Task
 
 static void task_version()
 {
-    std::cerr << "task :version" << std::endl;
+    std::cerr << "> :version" << std::endl;
 
     std::cout << "0.0.0" << std::endl;
 }
 
 static void task_help()
 {
-    std::cerr << "task :help" << std::endl;
+    std::cerr << "> :help" << std::endl;
 
     std::cout << "kompose [<option>...] <[module:]task>... [-- <argument>...]" << std::endl;
 
@@ -387,7 +201,7 @@ static void task_model(const kompose::Project &project)
 {
     for (const auto *node : nodes)
     {
-        std::cerr << "task " << node->Name << ":clean" << std::endl;
+        std::cerr << "> " << node->Name << ":clean" << std::endl;
 
         const auto &build = node->Build;
 
@@ -405,18 +219,17 @@ static void task_model(const kompose::Project &project)
 [[nodiscard]] static toolkit::result<> task_compile(const std::unordered_set<const kompose::Module *> &nodes)
 {
     std::vector<const kompose::Module *> path;
-    if (auto res = topological_sort(nodes) >> path; !res)
+    if (auto res = kompose::topological_sort(nodes) >> path; !res)
         return res;
 
-    for (const auto *node : path)
+    for (const auto *module : path)
     {
-        std::cerr << "task " << node->Name << ":compile" << std::endl;
+        std::cerr << "> " << module->Name << ":compile" << std::endl;
 
-        // TODO: determine source sets for dependencies
-        const auto &source_set = (*node)["main"];
-
-        if (auto res = compile(*node, source_set); !res)
-            return res;
+        for (const auto source_sets = module->IncludeInCompile();
+             const auto *source_set : source_sets)
+            if (auto res = kompose::compile(*module, *source_set); !res)
+                return res;
     }
 
     return {};
@@ -429,9 +242,9 @@ static void task_model(const kompose::Project &project)
         if (node->Type != kompose::ModuleType::Application)
             continue;
 
-        std::cerr << "task " << node->Name << ":launch" << std::endl;
+        std::cerr << "> " << node->Name << ":launch" << std::endl;
 
-        if (auto res = launch(*node); !res)
+        if (auto res = kompose::launch(*node); !res)
             return res;
     }
 
@@ -442,78 +255,10 @@ static void task_model(const kompose::Project &project)
 {
     for (const auto *node : nodes)
     {
-        std::cerr << "task " << node->Name << ":package" << std::endl;
+        std::cerr << "> " << node->Name << ":package" << std::endl;
 
-        auto output_file = node->Build / "bundle.jar";
-
-        std::vector<std::string> args
-        {
-            "jar",
-            "-c",
-            "-f",
-            output_file,
-        };
-
-        std::unordered_set<const kompose::SourceSet *> source_sets;
-        bool include_sources;
-
-        switch (node->Type)
-        {
-        case kompose::ModuleType::Application:
-        {
-            const auto &data = get<kompose::ApplicationModuleData>(node->Data);
-
-            source_sets = data.Include;
-            include_sources = false;
-
-            args.emplace_back("-e");
-            args.push_back(data.Main);
-
-            break;
-        }
-
-        case kompose::ModuleType::Library:
-        {
-            const auto &data = get<kompose::LibraryModuleData>(node->Data);
-
-            source_sets = data.Include;
-            include_sources = data.IncludeSources;
-
-            break;
-        }
-        }
-
-        for (const auto *source_set : source_sets)
-        {
-            auto classes_directory = source_set->Build / "classes";
-
-            args.emplace_back("-C");
-            args.push_back(classes_directory);
-            args.emplace_back(".");
-
-            auto resources_directory = source_set->Source / "resources";
-
-            args.emplace_back("-C");
-            args.push_back(resources_directory);
-            args.emplace_back(".");
-
-            if (include_sources)
-            {
-                auto sources_directory = source_set->Source / "kotlin";
-
-                args.emplace_back("-C");
-                args.push_back(sources_directory);
-                args.emplace_back(".");
-            }
-        }
-
-        std::string out, err;
-        if (auto res = kompose::Process(std::move(args))(out, err); !res)
-        {
-            std::cout << out;
-            std::cerr << err;
+        if (auto res = kompose::package(*node); !res)
             return res;
-        }
     }
 
     return {};
@@ -682,11 +427,10 @@ static const args::manifest manifest
             const auto *module = queue.front();
             modules_with_dependencies.insert(module);
 
-            // TODO: determine source sets for dependencies
-            const auto &source_set = (*module)["main"];
-
-            for (const auto *dependency : source_set.Compile.Modules)
-                queue.push(dependency);
+            for (const auto source_sets = module->IncludeInCompile();
+                 const auto *source_set : source_sets)
+                for (const auto *dependency : source_set->Compile.Modules)
+                    queue.push(dependency);
         }
 
         if (task == "version")
