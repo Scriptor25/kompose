@@ -299,12 +299,12 @@ static const args::manifest manifest
         tasks.emplace_back(task, name);
     }
 
-    const auto work = std::filesystem::weakly_canonical(
+    const auto project_path = std::filesystem::weakly_canonical(
         project_directory
             ? std::filesystem::path(*project_directory)
             : std::filesystem::current_path());
 
-    const auto project_toml = work / "project.toml";
+    const auto project_toml = project_path / "project.toml";
     if (!std::filesystem::exists(project_toml))
         return toolkit::make_error("project.toml does not exist");
 
@@ -316,21 +316,34 @@ static const args::manifest manifest
         return toolkit::make_error("failed to parse project.toml");
 
     if (!project_config.Name)
-        project_config.Name = work.filename();
+        project_config.Name = project_path.filename();
 
     std::vector<kompose::ModuleConfig> module_configs;
-    for (const auto &name : project_config.Modules.Include)
+    for (const auto &filename : project_config.Modules.Include)
     {
-        if (!std::filesystem::is_directory(name))
+        std::filesystem::path module_path;
+        std::string module_name;
+        if (filename == ".")
         {
-            std::cerr << "skip module '" << name << "': not a directory" << std::endl;
+            module_path = project_path;
+            module_name = "<root>";
+        }
+        else
+        {
+            module_path = project_path / filename;
+            module_name = filename;
+        }
+
+        if (!std::filesystem::is_directory(module_path))
+        {
+            std::cerr << "skip module '" << module_name << "': not a directory" << std::endl;
             continue;
         }
 
-        const auto module_toml = work / name / "module.toml";
+        const auto module_toml = module_path / "module.toml";
         if (!std::filesystem::exists(module_toml))
         {
-            std::cerr << "skip module '" << name << "': module.toml does not exist" << std::endl;
+            std::cerr << "skip module '" << module_name << "': module.toml does not exist" << std::endl;
             continue;
         }
 
@@ -340,14 +353,14 @@ static const args::manifest manifest
         kompose::ModuleConfig module_config;
         if (!(module_node >> module_config))
         {
-            std::cerr << "skip module '" << name << "': failed to parse module.toml" << std::endl;
+            std::cerr << "skip module '" << module_name << "': failed to parse module.toml" << std::endl;
             continue;
         }
 
-        module_config.Root = work / name;
+        module_config.Root = module_path;
 
         if (!module_config.Name)
-            module_config.Name = name;
+            module_config.Name = module_name;
 
         if (!module_config.Artifact.Name)
             module_config.Artifact.Name = module_config.Name;
@@ -383,7 +396,7 @@ static const args::manifest manifest
     }
 
     std::unique_ptr<kompose::Project> project;
-    if (auto res = build_project_from_config(work, project_config, module_configs) >> project; !res)
+    if (auto res = build_project_from_config(project_path, project_config, module_configs) >> project; !res)
         return res;
 
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
