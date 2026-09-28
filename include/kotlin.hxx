@@ -175,8 +175,8 @@ namespace kompose
         std::optional<std::string> JvmJdkRelease;
         /** -jvm-default-mode (enable|no-compatibility|disable) */
         KotlinJvmDefaultMode JvmDefaultMode{};
-        /** -jvm-target-version <version> */
-        std::optional<std::string> JvmTargetVersion;
+        /** -jvm-target <version> */
+        std::optional<std::string> JvmTarget;
         /** -java-parameters */
         bool JvmJavaParameters{};
         /** -module-name <name> */

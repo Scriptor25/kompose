@@ -186,10 +186,10 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
         args.emplace_back("disable");
         break;
     }
-    if (JvmTargetVersion)
+    if (JvmTarget)
     {
-        args.emplace_back("-jvm-target-version");
-        args.push_back(*JvmTargetVersion);
+        args.emplace_back("-jvm-target");
+        args.push_back(*JvmTarget);
     }
     if (JvmJavaParameters)
         args.emplace_back("-java-parameters");

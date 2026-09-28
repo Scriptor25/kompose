@@ -4,7 +4,7 @@
 #include <iostream>
 #include <queue>
 
-toolkit::result<> kompose::launch(const Module &module)
+toolkit::result<> kompose::launch(const Module &module, const std::vector<std::string_view> &program_args)
 {
     switch (module.Type)
     {
@@ -19,7 +19,7 @@ toolkit::result<> kompose::launch(const Module &module)
     const auto &main_class = data.Main;
 
     std::unordered_set<const Module *> module_dependencies;
-    std::unordered_set<std::string> maven_dependencies;
+    std::unordered_set<MavenCoordinate> maven_dependencies;
 
     std::queue<const Module *> queue;
     queue.push(&module);
@@ -50,15 +50,15 @@ toolkit::result<> kompose::launch(const Module &module)
         }
 
     for (const auto &dependency : maven_dependencies)
-    {
-        // TODO: resolve maven dependency, add to class path
-    }
+        // TODO: resolve maven dependency, with transitive dependencies
+        class_path.emplace_back(dependency.Locate());
 
     const auto *kotlin_home = getenv("KOTLIN_HOME");
     if (!kotlin_home)
         return toolkit::make_error("missing KOTLIN_HOME environment variable");
 
     class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
+    class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-reflect.jar");
 
     std::string class_path_string;
     for (auto it = class_path.begin(); it != class_path.end(); ++it)
@@ -73,6 +73,9 @@ toolkit::result<> kompose::launch(const Module &module)
     args.emplace_back("--class-path");
     args.push_back(class_path_string);
     args.push_back(main_class);
+
+    for (const auto &arg : program_args)
+        args.emplace_back(arg);
 
     std::string out, err;
     auto res = Process(std::move(args))(out, err);

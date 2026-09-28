@@ -1,25 +1,24 @@
 #include <config.hxx>
+#include <kompose.hxx>
 #include <kotlin.hxx>
-#include <process.hxx>
 #include <project.hxx>
 
 #include <args/args.hxx>
+
+#include <json/json.hxx>
 #include <toml/toml.hxx>
 
 #include <toolkit/result.hxx>
 
 #include <filesystem>
 #include <fstream>
-#include <functional>
 #include <iostream>
-#include <kompose.hxx>
 #include <memory>
 #include <queue>
 #include <ranges>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
-#include <json/json.hxx>
 
 [[nodiscard]] static toolkit::result<std::unique_ptr<kompose::Project>> build_project_from_config(
     const std::filesystem::path &path,
@@ -228,7 +227,9 @@ static void task_model(const kompose::Project &project)
     return {};
 }
 
-[[nodiscard]] static toolkit::result<> task_launch(const std::unordered_set<const kompose::Module *> &nodes)
+[[nodiscard]] static toolkit::result<> task_launch(
+    const std::unordered_set<const kompose::Module *> &nodes,
+    const std::vector<std::string_view> &program_args)
 {
     for (const auto *node : nodes)
     {
@@ -237,7 +238,7 @@ static void task_model(const kompose::Project &project)
 
         std::cerr << "> " << node->Name << ":launch" << std::endl;
 
-        if (auto res = kompose::launch(*node); !res)
+        if (auto res = kompose::launch(*node, program_args); !res)
             return res;
     }
 
@@ -276,6 +277,10 @@ static const args::manifest manifest
     const auto task_count = context.limited() ? context.limit() : context.size();
     for (size_t i = 0; i < task_count; ++i)
         task_strings.insert(context[i]);
+
+    std::vector<std::string_view> program_args;
+    for (auto i = task_count; i < context.size(); ++i)
+        program_args.push_back(context[i]);
 
     std::vector<Task> tasks;
     for (const auto &task_string : task_strings)
@@ -509,7 +514,7 @@ static const args::manifest manifest
         return res;
     if (auto res = task_compile(compile_modules); !res)
         return res;
-    if (auto res = task_launch(launch_modules); !res)
+    if (auto res = task_launch(launch_modules, program_args); !res)
         return res;
     if (auto res = task_package(package_modules); !res)
         return res;

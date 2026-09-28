@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <toolkit/string.hxx>
 
 bool data::serializer<kompose::ProjectConfig>::from_data(
     const toml::node &node,
@@ -133,6 +134,71 @@ bool data::serializer<kompose::DependencyConfig>::from_data(
     ok &= from_data_opt(node["maven"], value.Maven);
 
     return ok;
+}
+
+bool data::serializer<kompose::MavenCoordinate>::from_data(const toml::node &node, kompose::MavenCoordinate &value)
+{
+    if (std::string str; node >> str)
+    {
+        switch (
+            auto segments = toolkit::split(str, ':');
+            segments.size()
+        )
+        {
+        case 3:
+            value.Group = std::move(segments[0]);
+            value.Artifact = std::move(segments[1]);
+            value.Type = kompose::MavenCoordinateType::Jar;
+            value.Version = std::move(segments[2]);
+            break;
+        case 4:
+            value.Group = std::move(segments[0]);
+            value.Artifact = std::move(segments[1]);
+            if (!(toml::node(std::move(segments[2])) >> value.Type))
+                return false;
+            value.Version = std::move(segments[3]);
+            break;
+        default:
+            return false;
+        }
+
+        return true;
+    }
+
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= node["group"] >> value.Group;
+    ok &= node["artifact"] >> value.Artifact;
+    ok &= from_data_opt(node["type"], value.Type, kompose::MavenCoordinateType::Jar);
+    ok &= node["version"] >> value.Version;
+
+    return ok;
+}
+
+bool data::serializer<kompose::MavenCoordinateType>::from_data(
+    const toml::node &node,
+    kompose::MavenCoordinateType &value)
+{
+    static const std::unordered_map<std::string_view, kompose::MavenCoordinateType> map
+    {
+        { "jar", kompose::MavenCoordinateType::Jar },
+        { "sources-jar", kompose::MavenCoordinateType::SourcesJar },
+        { "pom", kompose::MavenCoordinateType::Pom },
+    };
+
+    if (std::string str; node >> str)
+    {
+        if (const auto it = map.find(str); it != map.end())
+        {
+            value = it->second;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool data::serializer<kompose::LibraryModulePackage>::from_data(

@@ -11,6 +11,6 @@ namespace kompose
 
 
     [[nodiscard]] toolkit::result<> compile(const Module &module, const SourceSet &source_set);
-    [[nodiscard]] toolkit::result<> launch(const Module &module);
+    [[nodiscard]] toolkit::result<> launch(const Module &module, const std::vector<std::string_view> &program_args);
     [[nodiscard]] toolkit::result<> package(const Module &module);
 }

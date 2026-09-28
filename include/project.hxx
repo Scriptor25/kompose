@@ -16,7 +16,7 @@ namespace kompose
     struct Dependency
     {
         std::unordered_set<const Module *> Modules;
-        std::unordered_set<std::string> Maven;
+        std::unordered_set<MavenCoordinate> Maven;
     };
 
     struct SourceSet

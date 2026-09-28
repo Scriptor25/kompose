@@ -91,6 +91,31 @@ void data::serializer<kompose::Dependency>::to_data(json::node &node, const komp
     };
 }
 
+void data::serializer<kompose::MavenCoordinate>::to_data(json::node &node, const kompose::MavenCoordinate &value)
+{
+    node = json::object
+    {
+        { "group", value.Group },
+        { "artifact", value.Artifact },
+        { "type", value.Type },
+        { "version", value.Version },
+    };
+}
+
+void data::serializer<kompose::MavenCoordinateType>::to_data(
+    json::node &node,
+    const kompose::MavenCoordinateType &value)
+{
+    static const std::unordered_map<kompose::MavenCoordinateType, const char *> map
+    {
+        { kompose::MavenCoordinateType::Jar, "jar" },
+        { kompose::MavenCoordinateType::SourcesJar, "sources-jar" },
+        { kompose::MavenCoordinateType::Pom, "pom" },
+    };
+
+    node = std::string(map.at(value));
+}
+
 void data::serializer<const kompose::SourceSet *>::to_data(json::node &node, const kompose::SourceSet *value)
 {
     node = json::string(value->Name);

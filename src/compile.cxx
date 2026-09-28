@@ -28,11 +28,16 @@ toolkit::result<> kompose::compile(const Module &module, const SourceSet &source
              const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
 
+    for (const auto &dependency : source_set.Compile.Maven)
+        // TODO: resolve maven dependency, with transitive dependencies
+        class_path.insert(dependency.Locate());
+
     KotlinCommand command
     {
         .Input = std::move(sources),
         .JvmClassPath = std::move(class_path),
         .JvmDestination = destination,
+        .JvmTarget = "25",
         .JvmModuleName = module.Name,
     };
 
