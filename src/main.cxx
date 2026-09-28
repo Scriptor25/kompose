@@ -157,21 +157,14 @@
     return project;
 }
 
-// tasks:
-//  version
-//  help
-//  clean
-//  compile
-//  resources
-//  build   -> compile + resources
-//  launch  -> build
-//  package -> build
-
-struct Task
+namespace
 {
-    std::string_view Name;
-    std::optional<std::string_view> Module;
-};
+    struct Task
+    {
+        std::string_view Name;
+        std::optional<std::string_view> Module;
+    };
+}
 
 static void task_version()
 {
@@ -280,12 +273,12 @@ static const args::manifest manifest
     const auto project_directory = context.get("project");
 
     std::unordered_set<std::string_view> task_strings;
-    auto task_count = context.limited() ? context.limit() : context.size();
+    const auto task_count = context.limited() ? context.limit() : context.size();
     for (size_t i = 0; i < task_count; ++i)
         task_strings.insert(context[i]);
 
     std::vector<Task> tasks;
-    for (auto &task_string : task_strings)
+    for (const auto &task_string : task_strings)
     {
         auto pos = task_string.find(':');
         if (pos == std::string::npos)
@@ -306,13 +299,12 @@ static const args::manifest manifest
         tasks.emplace_back(task, name);
     }
 
-    auto work = std::filesystem::weakly_canonical(
+    const auto work = std::filesystem::weakly_canonical(
         project_directory
             ? std::filesystem::path(*project_directory)
             : std::filesystem::current_path());
 
-    auto project_toml = work / "project.toml";
-
+    const auto project_toml = work / "project.toml";
     if (!std::filesystem::exists(project_toml))
         return toolkit::make_error("project.toml does not exist");
 
@@ -335,7 +327,7 @@ static const args::manifest manifest
             continue;
         }
 
-        auto module_toml = work / name / "module.toml";
+        const auto module_toml = work / name / "module.toml";
         if (!std::filesystem::exists(module_toml))
         {
             std::cerr << "skip module '" << name << "': module.toml does not exist" << std::endl;
@@ -397,7 +389,7 @@ static const args::manifest manifest
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
     // TODO: same if already packaged and neither source files nor resources did change, then do not package again
 
-    std::unordered_set<const kompose::Module *> clean, compile, launch, package;
+    std::unordered_set<const kompose::Module *> clean_modules, compile_modules, launch_modules, package_modules;
     for (auto &[task, module_name] : tasks)
     {
         std::unordered_set<const kompose::Module *> modules;
@@ -454,7 +446,7 @@ static const args::manifest manifest
         if (task == "clean")
         {
             for (const auto *module : modules)
-                clean.insert(module);
+                clean_modules.insert(module);
 
             continue;
         }
@@ -462,7 +454,7 @@ static const args::manifest manifest
         if (task == "compile")
         {
             for (const auto *module : modules_with_dependencies)
-                compile.insert(module);
+                compile_modules.insert(module);
 
             continue;
         }
@@ -470,7 +462,7 @@ static const args::manifest manifest
         if (task == "build")
         {
             for (const auto *module : modules_with_dependencies)
-                compile.insert(module);
+                compile_modules.insert(module);
 
             continue;
         }
@@ -478,10 +470,10 @@ static const args::manifest manifest
         if (task == "launch")
         {
             for (const auto *module : modules_with_dependencies)
-                compile.insert(module);
+                compile_modules.insert(module);
 
             for (const auto *module : modules)
-                launch.insert(module);
+                launch_modules.insert(module);
 
             continue;
         }
@@ -489,10 +481,10 @@ static const args::manifest manifest
         if (task == "package")
         {
             for (const auto *module : modules_with_dependencies)
-                compile.insert(module);
+                compile_modules.insert(module);
 
             for (const auto *module : modules)
-                package.insert(module);
+                package_modules.insert(module);
 
             continue;
         }
@@ -500,13 +492,13 @@ static const args::manifest manifest
         return toolkit::make_error("undefined task {}:{}", module_name.value_or({}), task);
     }
 
-    if (auto res = task_clean(clean); !res)
+    if (auto res = task_clean(clean_modules); !res)
         return res;
-    if (auto res = task_compile(compile); !res)
+    if (auto res = task_compile(compile_modules); !res)
         return res;
-    if (auto res = task_launch(launch); !res)
+    if (auto res = task_launch(launch_modules); !res)
         return res;
-    if (auto res = task_package(package); !res)
+    if (auto res = task_package(package_modules); !res)
         return res;
 
     return {};
