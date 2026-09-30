@@ -1,6 +1,5 @@
 #pragma once
 
-#include <json/json.hxx>
 #include <toml/toml.hxx>
 
 #include <data/serializer.hxx>
@@ -185,13 +184,15 @@ namespace kompose
 } // namespace kompose
 
 template<>
-struct data::serializer<kompose::ProjectConfig>
+struct data::serializer<toml::node, kompose::ProjectConfig>
 {
-    static bool from_data(const toml::node &node, kompose::ProjectConfig &value);
+    static bool from_data(
+        const toml::node &node,
+        kompose::ProjectConfig &value);
 };
 
 template<>
-struct data::serializer<kompose::ModuleConfig>
+struct data::serializer<toml::node, kompose::ModuleConfig>
 {
     static bool from_data(
         const toml::node &node,
@@ -199,7 +200,7 @@ struct data::serializer<kompose::ModuleConfig>
 };
 
 template<>
-struct data::serializer<kompose::SourceSetConfig>
+struct data::serializer<toml::node, kompose::SourceSetConfig>
 {
     static bool from_data(
         const toml::node &node,
@@ -207,7 +208,7 @@ struct data::serializer<kompose::SourceSetConfig>
 };
 
 template<>
-struct data::serializer<kompose::DependencyConfig>
+struct data::serializer<toml::node, kompose::DependencyConfig>
 {
     static bool from_data(
         const toml::node &node,
@@ -215,31 +216,25 @@ struct data::serializer<kompose::DependencyConfig>
 };
 
 template<>
-struct data::serializer<kompose::MavenCoordinate>
+struct data::serializer<toml::node, kompose::MavenCoordinate>
 {
     static bool from_data(
         const toml::node &node,
         kompose::MavenCoordinate &value);
-
-    static void to_data(json::node &node, const kompose::MavenCoordinate &value);
 };
 
 template<>
-struct data::serializer<kompose::MavenCoordinateType>
+struct data::serializer<toml::node, kompose::MavenCoordinateType>
 {
     static bool from_data(
         const toml::node &node,
         kompose::MavenCoordinateType &value);
-
-    static void to_data(json::node &node, const kompose::MavenCoordinateType &value);
 };
 
 template<>
-struct data::serializer<kompose::LibraryModulePackage>
+struct data::serializer<toml::node, kompose::LibraryModulePackage>
 {
     static bool from_data(
         const toml::node &node,
         kompose::LibraryModulePackage &value);
-
-    static void to_data(json::node &node, const kompose::LibraryModulePackage &value);
 };

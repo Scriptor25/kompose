@@ -93,61 +93,107 @@ namespace kompose
 } // namespace kompose
 
 template<>
-struct data::serializer<kompose::Project>
+struct data::serializer<json::node, kompose::Project>
 {
-    static void to_data(json::node &node, const kompose::Project &value);
+    static void to_data(
+        json::node &node,
+        const kompose::Project &value);
 };
 
 template<>
-struct data::serializer<kompose::Module>
+struct data::serializer<json::node, kompose::Module>
 {
-    static void to_data(json::node &node, const kompose::Module &value);
+    static void to_data(
+        json::node &node,
+        const kompose::Module &value);
 };
 
 template<>
-struct data::serializer<std::filesystem::path>
+struct data::serializer<json::node, std::filesystem::path>
 {
-    static void to_data(json::node &node, const std::filesystem::path &value);
+    static void to_data(
+        json::node &node,
+        const std::filesystem::path &value);
 };
 
 template<>
-struct data::serializer<kompose::ModuleType>
+struct data::serializer<json::node, kompose::ModuleType>
 {
-    static void to_data(json::node &node, const kompose::ModuleType &value);
+    static void to_data(
+        json::node &node,
+        const kompose::ModuleType &value);
 };
 
 template<>
-struct data::serializer<kompose::SourceSet>
+struct data::serializer<json::node, kompose::SourceSet>
 {
-    static void to_data(json::node &node, const kompose::SourceSet &value);
+    static void to_data(
+        json::node &node,
+        const kompose::SourceSet &value);
 };
 
 template<>
-struct data::serializer<kompose::ApplicationModuleData>
+struct data::serializer<json::node, kompose::ApplicationModuleData>
 {
-    static void to_data(json::node &node, const kompose::ApplicationModuleData &value);
+    static void to_data(
+        json::node &node,
+        const kompose::ApplicationModuleData &value);
 };
 
 template<>
-struct data::serializer<kompose::LibraryModuleData>
+struct data::serializer<json::node, kompose::LibraryModuleData>
 {
-    static void to_data(json::node &node, const kompose::LibraryModuleData &value);
+    static void to_data(
+        json::node &node,
+        const kompose::LibraryModuleData &value);
 };
 
 template<>
-struct data::serializer<kompose::Dependency>
+struct data::serializer<json::node, kompose::Dependency>
 {
-    static void to_data(json::node &node, const kompose::Dependency &value);
+    static void to_data(
+        json::node &node,
+        const kompose::Dependency &value);
 };
 
 template<>
-struct data::serializer<const kompose::SourceSet *>
+struct data::serializer<json::node, const kompose::SourceSet *>
 {
-    static void to_data(json::node &node, const kompose::SourceSet *value);
+    static void to_data(
+        json::node &node,
+        const kompose::SourceSet *value);
 };
 
 template<>
-struct data::serializer<const kompose::Module *>
+struct data::serializer<json::node, const kompose::Module *>
 {
-    static void to_data(json::node &node, const kompose::Module *value);
+    static void to_data(
+        json::node &node,
+        const kompose::Module *value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::MavenCoordinate>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::MavenCoordinate &value);
+};
+
+
+template<>
+struct data::serializer<json::node, kompose::MavenCoordinateType>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::MavenCoordinateType &value);
+};
+
+
+template<>
+struct data::serializer<json::node, kompose::LibraryModulePackage>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::LibraryModulePackage &value);
 };

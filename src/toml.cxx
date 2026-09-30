@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <toolkit/string.hxx>
 
-bool data::serializer<kompose::ProjectConfig>::from_data(
+bool data::serializer<toml::node, kompose::ProjectConfig>::from_data(
     const toml::node &node,
     kompose::ProjectConfig &value)
 {
@@ -34,7 +34,7 @@ bool data::serializer<kompose::ProjectConfig>::from_data(
     return ok;
 }
 
-bool data::serializer<kompose::ModuleConfig>::from_data(
+bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
     const toml::node &node,
     kompose::ModuleConfig &value)
 {
@@ -100,7 +100,7 @@ bool data::serializer<kompose::ModuleConfig>::from_data(
     return false;
 }
 
-bool data::serializer<kompose::SourceSetConfig>::from_data(
+bool data::serializer<toml::node, kompose::SourceSetConfig>::from_data(
     const toml::node &node,
     kompose::SourceSetConfig &value)
 {
@@ -121,7 +121,7 @@ bool data::serializer<kompose::SourceSetConfig>::from_data(
     return ok;
 }
 
-bool data::serializer<kompose::DependencyConfig>::from_data(
+bool data::serializer<toml::node, kompose::DependencyConfig>::from_data(
     const toml::node &node,
     kompose::DependencyConfig &value)
 {
@@ -136,7 +136,9 @@ bool data::serializer<kompose::DependencyConfig>::from_data(
     return ok;
 }
 
-bool data::serializer<kompose::MavenCoordinate>::from_data(const toml::node &node, kompose::MavenCoordinate &value)
+bool data::serializer<toml::node, kompose::MavenCoordinate>::from_data(
+    const toml::node &node,
+    kompose::MavenCoordinate &value)
 {
     if (std::string str; node >> str)
     {
@@ -178,7 +180,7 @@ bool data::serializer<kompose::MavenCoordinate>::from_data(const toml::node &nod
     return ok;
 }
 
-bool data::serializer<kompose::MavenCoordinateType>::from_data(
+bool data::serializer<toml::node, kompose::MavenCoordinateType>::from_data(
     const toml::node &node,
     kompose::MavenCoordinateType &value)
 {
@@ -201,7 +203,7 @@ bool data::serializer<kompose::MavenCoordinateType>::from_data(
     return false;
 }
 
-bool data::serializer<kompose::LibraryModulePackage>::from_data(
+bool data::serializer<toml::node, kompose::LibraryModulePackage>::from_data(
     const toml::node &node,
     kompose::LibraryModulePackage &value)
 {

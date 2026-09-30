@@ -1,6 +1,8 @@
 #include <project.hxx>
 
-void data::serializer<kompose::Project>::to_data(json::node &node, const kompose::Project &value)
+void data::serializer<json::node, kompose::Project>::to_data(
+    json::node &node,
+    const kompose::Project &value)
 {
     node = json::object
     {
@@ -10,7 +12,9 @@ void data::serializer<kompose::Project>::to_data(json::node &node, const kompose
     };
 }
 
-void data::serializer<kompose::Module>::to_data(json::node &node, const kompose::Module &value)
+void data::serializer<json::node, kompose::Module>::to_data(
+    json::node &node,
+    const kompose::Module &value)
 {
     const auto &base = value.Parent->Path;
 
@@ -25,12 +29,16 @@ void data::serializer<kompose::Module>::to_data(json::node &node, const kompose:
     };
 }
 
-void data::serializer<std::filesystem::path>::to_data(json::node &node, const std::filesystem::path &value)
+void data::serializer<json::node, std::filesystem::path>::to_data(
+    json::node &node,
+    const std::filesystem::path &value)
 {
     node = json::string(value.string());
 }
 
-void data::serializer<kompose::ModuleType>::to_data(json::node &node, const kompose::ModuleType &value)
+void data::serializer<json::node, kompose::ModuleType>::to_data(
+    json::node &node,
+    const kompose::ModuleType &value)
 {
     static const std::unordered_map<kompose::ModuleType, std::string_view> map
     {
@@ -41,7 +49,9 @@ void data::serializer<kompose::ModuleType>::to_data(json::node &node, const komp
     node = json::string(map.at(value));
 }
 
-void data::serializer<kompose::SourceSet>::to_data(json::node &node, const kompose::SourceSet &value)
+void data::serializer<json::node, kompose::SourceSet>::to_data(
+    json::node &node,
+    const kompose::SourceSet &value)
 {
     const auto &base = value.Parent->Parent->Path;
 
@@ -61,7 +71,7 @@ void data::serializer<kompose::SourceSet>::to_data(json::node &node, const kompo
     };
 }
 
-void data::serializer<kompose::ApplicationModuleData>::to_data(
+void data::serializer<json::node, kompose::ApplicationModuleData>::to_data(
     json::node &node,
     const kompose::ApplicationModuleData &value)
 {
@@ -72,7 +82,9 @@ void data::serializer<kompose::ApplicationModuleData>::to_data(
     };
 }
 
-void data::serializer<kompose::LibraryModuleData>::to_data(json::node &node, const kompose::LibraryModuleData &value)
+void data::serializer<json::node, kompose::LibraryModuleData>::to_data(
+    json::node &node,
+    const kompose::LibraryModuleData &value)
 {
     node = json::object
     {
@@ -82,7 +94,9 @@ void data::serializer<kompose::LibraryModuleData>::to_data(json::node &node, con
     };
 }
 
-void data::serializer<kompose::Dependency>::to_data(json::node &node, const kompose::Dependency &value)
+void data::serializer<json::node, kompose::Dependency>::to_data(
+    json::node &node,
+    const kompose::Dependency &value)
 {
     node = json::object
     {
@@ -91,7 +105,9 @@ void data::serializer<kompose::Dependency>::to_data(json::node &node, const komp
     };
 }
 
-void data::serializer<kompose::MavenCoordinate>::to_data(json::node &node, const kompose::MavenCoordinate &value)
+void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
+    json::node &node,
+    const kompose::MavenCoordinate &value)
 {
     node = json::object
     {
@@ -102,7 +118,7 @@ void data::serializer<kompose::MavenCoordinate>::to_data(json::node &node, const
     };
 }
 
-void data::serializer<kompose::MavenCoordinateType>::to_data(
+void data::serializer<json::node, kompose::MavenCoordinateType>::to_data(
     json::node &node,
     const kompose::MavenCoordinateType &value)
 {
@@ -116,17 +132,21 @@ void data::serializer<kompose::MavenCoordinateType>::to_data(
     node = std::string(map.at(value));
 }
 
-void data::serializer<const kompose::SourceSet *>::to_data(json::node &node, const kompose::SourceSet *value)
+void data::serializer<json::node, const kompose::SourceSet *>::to_data(
+    json::node &node,
+    const kompose::SourceSet *value)
 {
     node = json::string(value->Name);
 }
 
-void data::serializer<const kompose::Module *>::to_data(json::node &node, const kompose::Module *value)
+void data::serializer<json::node, const kompose::Module *>::to_data(
+    json::node &node,
+    const kompose::Module *value)
 {
     node = json::string(value->Name);
 }
 
-void data::serializer<kompose::LibraryModulePackage>::to_data(
+void data::serializer<json::node, kompose::LibraryModulePackage>::to_data(
     json::node &node,
     const kompose::LibraryModulePackage &value)
 {
