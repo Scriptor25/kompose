@@ -8,6 +8,8 @@ set(PROJECT_TITLE "Kotlin build tool")
 string(TIMESTAMP BUILD_DATE "%d/%m/%Y")
 set(PROJECT_BUILD_DATE "${BUILD_DATE}")
 
+set(TOOLKIT_HTTP_NO_TLS OFF)
+
 add_subdirectory(deps/toolkit)
 
 set(CMAKE_CXX_STANDARD 20)
