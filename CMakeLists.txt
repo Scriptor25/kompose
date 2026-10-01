@@ -21,6 +21,9 @@ target_include_directories(kompose PRIVATE "include")
 target_link_libraries(kompose PRIVATE
         toolkit::core
         toolkit::args
+        toolkit::http
         toolkit::json
         toolkit::toml
+        toolkit::xml
+        ssl
 )

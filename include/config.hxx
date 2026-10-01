@@ -1,5 +1,7 @@
 #pragma once
 
+#include <maven.hxx>
+
 #include <toml/toml.hxx>
 
 #include <data/serializer.hxx>
@@ -10,81 +12,6 @@
 #include <optional>
 #include <string>
 #include <unordered_set>
-
-namespace kompose
-{
-    enum class MavenCoordinateType
-    {
-        Jar,
-        SourcesJar,
-        Pom,
-    };
-
-    struct MavenCoordinate
-    {
-        bool operator==(const MavenCoordinate &other) const
-        {
-            return Group == other.Group && Artifact == other.Artifact && Type == other.Type && Version == other.Version;
-        }
-
-        [[nodiscard]] std::filesystem::path Locate() const
-        {
-            const auto *home = getenv("HOME");
-
-            auto path = std::filesystem::path(home) / ".m2" / "repository";
-
-            for (const auto segments = toolkit::split(Group, '.');
-                 const auto &segment : segments)
-                path /= segment;
-
-            path /= Artifact;
-            path /= Version;
-
-            std::string type;
-
-            switch (Type)
-            {
-            case MavenCoordinateType::Jar:
-                type = ".jar";
-                break;
-            case MavenCoordinateType::SourcesJar:
-                type = "-sources.jar";
-                break;
-            case MavenCoordinateType::Pom:
-                type = ".pom";
-                break;
-            }
-
-            path /= std::format("{}-{}{}", Artifact, Version, type);
-
-            return path;
-        }
-
-        std::string Group;
-        std::string Artifact;
-        MavenCoordinateType Type;
-        std::string Version;
-    };
-}
-
-template<>
-struct std::hash<kompose::MavenCoordinate>
-{
-    [[nodiscard]] static std::size_t combine(const std::size_t a, const std::size_t b) noexcept
-    {
-        return a ^ (b << 1);
-    }
-
-    std::size_t operator()(const kompose::MavenCoordinate &value) const noexcept
-    {
-        const auto h1 = std::hash<std::string>()(value.Group);
-        const auto h2 = std::hash<std::string>()(value.Artifact);
-        const auto h3 = std::hash<kompose::MavenCoordinateType>()(value.Type);
-        const auto h4 = std::hash<std::string>()(value.Version);
-
-        return combine(h1, combine(h2, combine(h3, h4)));
-    }
-};
 
 namespace kompose
 {
@@ -174,7 +101,6 @@ namespace kompose
 
         ArtifactConfig Artifact;
 
-        RepositoriesConfig Repositories;
         DependenciesConfig Dependencies;
 
         std::unordered_map<std::string, SourceSetConfig> SourceSets;
@@ -221,14 +147,6 @@ struct data::serializer<toml::node, kompose::MavenCoordinate>
     static bool from_data(
         const toml::node &node,
         kompose::MavenCoordinate &value);
-};
-
-template<>
-struct data::serializer<toml::node, kompose::MavenCoordinateType>
-{
-    static bool from_data(
-        const toml::node &node,
-        kompose::MavenCoordinateType &value);
 };
 
 template<>

@@ -8,6 +8,8 @@
 #include <json/json.hxx>
 #include <toml/toml.hxx>
 
+#include <http/client.hxx>
+
 #include <toolkit/result.hxx>
 
 #include <filesystem>
@@ -30,6 +32,7 @@
         {
             .Name = *project_config.Name,
             .Path = path,
+            .Repositories = project_config.Repositories,
         }
     );
 
@@ -208,7 +211,10 @@ static void task_model(const kompose::Project &project)
     return {};
 }
 
-[[nodiscard]] static toolkit::result<> task_compile(const std::unordered_set<const kompose::Module *> &nodes)
+[[nodiscard]] static toolkit::result<> task_compile(
+    const kompose::Project &project,
+    const std::unordered_set<const kompose::Module *> &nodes,
+    const http::client &client)
 {
     std::vector<const kompose::Module *> path;
     if (auto res = kompose::topological_sort(nodes) >> path; !res)
@@ -220,7 +226,7 @@ static void task_model(const kompose::Project &project)
 
         for (const auto source_sets = module->IncludeInCompile();
              const auto *source_set : source_sets)
-            if (auto res = kompose::compile(*module, *source_set); !res)
+            if (auto res = kompose::compile(project, *module, *source_set, client); !res)
                 return res;
     }
 
@@ -228,7 +234,9 @@ static void task_model(const kompose::Project &project)
 }
 
 [[nodiscard]] static toolkit::result<> task_launch(
+    const kompose::Project &project,
     const std::unordered_set<const kompose::Module *> &nodes,
+    const http::client &client,
     const std::vector<std::string_view> &program_args)
 {
     for (const auto *node : nodes)
@@ -238,7 +246,7 @@ static void task_model(const kompose::Project &project)
 
         std::cerr << "> " << node->Name << ":launch" << std::endl;
 
-        if (auto res = kompose::launch(*node, program_args); !res)
+        if (auto res = kompose::launch(project, *node, program_args, client); !res)
             return res;
     }
 
@@ -376,9 +384,6 @@ static const args::manifest manifest
         if (!module_config.Artifact.Version)
             module_config.Artifact.Version = project_config.Artifact.Version;
 
-        for (const auto &entry : project_config.Repositories.Maven)
-            module_config.Repositories.Maven.insert(entry);
-
         for (const auto &entry : project_config.Dependencies.General.Modules)
             module_config.Dependencies.General.Modules.insert(entry);
 
@@ -403,6 +408,9 @@ static const args::manifest manifest
     std::unique_ptr<kompose::Project> project;
     if (auto res = build_project_from_config(project_path, project_config, module_configs) >> project; !res)
         return res;
+
+    const auto transport = http::create_default_transport(true);
+    http::client client(*transport);
 
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
     // TODO: same if already packaged and neither source files nor resources did change, then do not package again
@@ -512,9 +520,9 @@ static const args::manifest manifest
 
     if (auto res = task_clean(clean_modules); !res)
         return res;
-    if (auto res = task_compile(compile_modules); !res)
+    if (auto res = task_compile(*project, compile_modules, client); !res)
         return res;
-    if (auto res = task_launch(launch_modules, program_args); !res)
+    if (auto res = task_launch(*project, launch_modules, client, program_args); !res)
         return res;
     if (auto res = task_package(package_modules); !res)
         return res;

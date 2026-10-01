@@ -164,7 +164,7 @@ namespace kompose
 #pragma region JVM
 
         /** -classpath <path> | -cp <path> */
-        std::unordered_set<std::string> JvmClassPath;
+        std::optional<std::string> JvmClassPath;
         /** -d <path> */
         std::optional<std::string> JvmDestination;
         /** -include-runtime */

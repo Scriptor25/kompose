@@ -16,7 +16,7 @@ version = "1.0.0"
 # module dependencies
 modules = []
 # maven dependencies
-maven = ["com.example:example:1.2.3"]
+maven = ["org.jetbrains.kotlin:kotlin-stdlib:2.4.20"]
 
 # compile-time-specific dependencies
 compile.modules = []

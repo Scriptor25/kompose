@@ -4,7 +4,11 @@
 #include <iostream>
 #include <queue>
 
-toolkit::result<> kompose::launch(const Module &module, const std::vector<std::string_view> &program_args)
+toolkit::result<> kompose::launch(
+    const Project &project,
+    const Module &module,
+    const std::vector<std::string_view> &program_args,
+    const http::client &client)
 {
     switch (module.Type)
     {
@@ -39,26 +43,32 @@ toolkit::result<> kompose::launch(const Module &module, const std::vector<std::s
         }
     }
 
-    std::vector<std::string> class_path;
+    std::unordered_set<std::filesystem::path> class_path;
 
     for (const auto *dependency : module_dependencies)
         for (const auto source_sets = dependency->IncludeInCompile();
              const auto *source_set : source_sets)
         {
-            class_path.emplace_back(source_set->Build / "classes");
-            class_path.emplace_back(source_set->Source / "resources");
+            class_path.insert(source_set->Build / "classes");
+            class_path.insert(source_set->Source / "resources");
         }
 
     for (const auto &dependency : maven_dependencies)
-        // TODO: resolve maven dependency, with transitive dependencies
-        class_path.emplace_back(dependency.Locate());
+    {
+        std::unordered_set<std::filesystem::path> paths;
+        if (auto res = dependency.resolve(project, client) >> paths; !res)
+            return res;
+
+        for (const auto &path : paths)
+            class_path.insert(path);
+    }
 
     const auto *kotlin_home = getenv("KOTLIN_HOME");
     if (!kotlin_home)
         return toolkit::make_error("missing KOTLIN_HOME environment variable");
 
-    class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
-    class_path.emplace_back(std::filesystem::path(kotlin_home) / "lib" / "kotlin-reflect.jar");
+    class_path.insert(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
+    class_path.insert(std::filesystem::path(kotlin_home) / "lib" / "kotlin-reflect.jar");
 
     std::string class_path_string;
     for (auto it = class_path.begin(); it != class_path.end(); ++it)

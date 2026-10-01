@@ -8,6 +8,7 @@ void data::serializer<json::node, kompose::Project>::to_data(
     {
         { "name", value.Name },
         { "path", value.Path },
+        { "repositories", value.Repositories },
         { "modules", value.Modules },
     };
 }
@@ -113,23 +114,8 @@ void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
     {
         { "group", value.Group },
         { "artifact", value.Artifact },
-        { "type", value.Type },
         { "version", value.Version },
     };
-}
-
-void data::serializer<json::node, kompose::MavenCoordinateType>::to_data(
-    json::node &node,
-    const kompose::MavenCoordinateType &value)
-{
-    static const std::unordered_map<kompose::MavenCoordinateType, const char *> map
-    {
-        { kompose::MavenCoordinateType::Jar, "jar" },
-        { kompose::MavenCoordinateType::SourcesJar, "sources-jar" },
-        { kompose::MavenCoordinateType::Pom, "pom" },
-    };
-
-    node = std::string(map.at(value));
 }
 
 void data::serializer<json::node, const kompose::SourceSet *>::to_data(
@@ -156,4 +142,14 @@ void data::serializer<json::node, kompose::LibraryModulePackage>::to_data(
     };
 
     node = json::string(map.at(value));
+}
+
+void data::serializer<json::node, kompose::RepositoriesConfig>::to_data(
+    json::node &node,
+    const kompose::RepositoriesConfig &value)
+{
+    node = json::object
+    {
+        { "maven", value.Maven },
+    };
 }

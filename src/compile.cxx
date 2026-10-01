@@ -3,7 +3,11 @@
 
 #include <iostream>
 
-toolkit::result<> kompose::compile(const Module &module, const SourceSet &source_set)
+toolkit::result<> kompose::compile(
+    const Project &project,
+    const Module &module,
+    const SourceSet &source_set,
+    const http::client &client)
 {
     std::unordered_set<std::string> sources;
     for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Source / "kotlin"))
@@ -22,20 +26,34 @@ toolkit::result<> kompose::compile(const Module &module, const SourceSet &source
 
     std::filesystem::create_directories(destination);
 
-    std::unordered_set<std::string> class_path;
+    std::unordered_set<std::filesystem::path> class_path;
     for (const auto *dependency : source_set.Compile.Modules)
         for (const auto source_sets = dependency->IncludeInCompile();
              const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
 
     for (const auto &dependency : source_set.Compile.Maven)
-        // TODO: resolve maven dependency, with transitive dependencies
-        class_path.insert(dependency.Locate());
+    {
+        std::unordered_set<std::filesystem::path> paths;
+        if (auto res = dependency.resolve(project, client) >> paths; !res)
+            return res;
+
+        for (const auto &path : paths)
+            class_path.insert(path);
+    }
+
+    std::string class_path_string;
+    for (auto it = class_path.begin(); it != class_path.end(); ++it)
+    {
+        if (it != class_path.begin())
+            class_path_string += ':';
+        class_path_string += *it;
+    }
 
     KotlinCommand command
     {
         .Input = std::move(sources),
-        .JvmClassPath = std::move(class_path),
+        .JvmClassPath = std::move(class_path_string),
         .JvmDestination = destination,
         .JvmTarget = "25",
         .JvmModuleName = module.Name,

@@ -1,12 +1,14 @@
 #pragma once
 
 #include <config.hxx>
+#include <maven.hxx>
+
+#include <json/json.hxx>
 
 #include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <json/json.hxx>
 
 namespace kompose
 {
@@ -87,6 +89,8 @@ namespace kompose
 
         std::string Name;
         std::filesystem::path Path;
+
+        RepositoriesConfig Repositories;
 
         std::unordered_map<std::string, Module> Modules;
     };
@@ -180,20 +184,18 @@ struct data::serializer<json::node, kompose::MavenCoordinate>
         const kompose::MavenCoordinate &value);
 };
 
-
-template<>
-struct data::serializer<json::node, kompose::MavenCoordinateType>
-{
-    static void to_data(
-        json::node &node,
-        const kompose::MavenCoordinateType &value);
-};
-
-
 template<>
 struct data::serializer<json::node, kompose::LibraryModulePackage>
 {
     static void to_data(
         json::node &node,
         const kompose::LibraryModulePackage &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::RepositoriesConfig>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::RepositoriesConfig &value);
 };

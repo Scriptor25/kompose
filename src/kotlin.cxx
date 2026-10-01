@@ -140,17 +140,10 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
 
 #pragma region JVM
 
-    if (!JvmClassPath.empty())
+    if (JvmClassPath)
     {
-        std::string classpath;
-        for (auto it = JvmClassPath.begin(); it != JvmClassPath.end(); ++it)
-        {
-            if (it != JvmClassPath.begin())
-                classpath += ':';
-            classpath += *it;
-        }
         args.emplace_back("-classpath");
-        args.push_back(classpath);
+        args.push_back(*JvmClassPath);
     }
     if (JvmDestination)
     {
