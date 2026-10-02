@@ -56,19 +56,12 @@ toolkit::result<> kompose::launch(
     for (const auto &dependency : maven_dependencies)
     {
         std::unordered_set<std::filesystem::path> paths;
-        if (auto res = dependency.resolve(project, client) >> paths; !res)
+        if (auto res = dependency.resolve(project, client, MavenResolveScope::Runtime) >> paths; !res)
             return res;
 
         for (const auto &path : paths)
             class_path.insert(path);
     }
-
-    const auto *kotlin_home = getenv("KOTLIN_HOME");
-    if (!kotlin_home)
-        return toolkit::make_error("missing KOTLIN_HOME environment variable");
-
-    class_path.insert(std::filesystem::path(kotlin_home) / "lib" / "kotlin-stdlib.jar");
-    class_path.insert(std::filesystem::path(kotlin_home) / "lib" / "kotlin-reflect.jar");
 
     std::string class_path_string;
     for (auto it = class_path.begin(); it != class_path.end(); ++it)

@@ -35,7 +35,7 @@ toolkit::result<> kompose::compile(
     for (const auto &dependency : source_set.Compile.Maven)
     {
         std::unordered_set<std::filesystem::path> paths;
-        if (auto res = dependency.resolve(project, client) >> paths; !res)
+        if (auto res = dependency.resolve(project, client, MavenResolveScope::Compile) >> paths; !res)
             return res;
 
         for (const auto &path : paths)
