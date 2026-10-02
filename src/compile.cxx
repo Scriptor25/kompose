@@ -49,6 +49,7 @@ toolkit::result<> kompose::compile(
         class_path_string += *it;
     }
 
+    // TODO: make language version, api version and jvm target version controllable
     KotlinCommand command
     {
         .Input = std::move(sources),
