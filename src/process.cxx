@@ -8,10 +8,6 @@
 
 toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &err) const
 {
-    for (const auto &arg : Args)
-        std::cerr << arg << ' ';
-    std::cerr << std::endl;
-
     char *argv[Args.size() + 1];
     for (size_t i = 0; i < Args.size(); ++i)
     {
