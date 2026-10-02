@@ -53,10 +53,9 @@ toolkit::result<> kompose::launch(
             class_path.insert(source_set->Source / "resources");
         }
 
-    for (const auto &dependency : maven_dependencies)
     {
         std::unordered_set<std::filesystem::path> paths;
-        if (auto res = dependency.resolve(project, client, MavenResolveScope::Runtime) >> paths; !res)
+        if (auto res = resolve(project, client, MavenResolveScope::Runtime, maven_dependencies) >> paths; !res)
             return res;
 
         for (const auto &path : paths)
@@ -80,11 +79,5 @@ toolkit::result<> kompose::launch(
     for (const auto &arg : program_args)
         args.emplace_back(arg);
 
-    std::string out, err;
-    auto res = Process(std::move(args))(out, err);
-
-    std::cout << out;
-    std::cerr << err;
-
-    return res;
+    return Process(std::move(args))(std::cout, std::cerr);
 }

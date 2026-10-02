@@ -1,3 +1,4 @@
+#include <iostream>
 #include <kotlin.hxx>
 #include <process.hxx>
 
@@ -376,7 +377,7 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
     return args;
 }
 
-toolkit::result<> kompose::KotlinCommand::operator()(std::string &out, std::string &err) const
+toolkit::result<> kompose::KotlinCommand::operator()(std::ostream &out, std::ostream &err) const
 {
     auto args = Build();
 

@@ -1,11 +1,17 @@
+#include <iostream>
+#include <ostream>
 #include <unistd.h>
 #include <sys/poll.h>
 #include <sys/wait.h>
 
 #include <process.hxx>
 
-toolkit::result<> kompose::Process::operator()(std::string &out, std::string &err) const
+toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &err) const
 {
+    for (const auto &arg : Args)
+        std::cerr << arg << ' ';
+    std::cerr << std::endl;
+
     char *argv[Args.size() + 1];
     for (size_t i = 0; i < Args.size(); ++i)
     {
@@ -80,9 +86,9 @@ toolkit::result<> kompose::Process::operator()(std::string &out, std::string &er
                 if (const auto n = read(fds[i].fd, buffer, sizeof(buffer)); n > 0)
                 {
                     if (i == 0)
-                        out.append(buffer, n);
+                        out.write(buffer, n);
                     else
-                        err.append(buffer, n);
+                        err.write(buffer, n);
                 }
                 else if (n == 0)
                 {

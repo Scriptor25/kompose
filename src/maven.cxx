@@ -39,26 +39,105 @@ uint8_t kompose::operator&(MavenDependencyScope a, MavenDependencyScope b)
     return static_cast<uint8_t>(a) & static_cast<uint8_t>(b);
 }
 
-const kompose::MavenDocument *kompose::MavenDocument::GetParent(const MavenDocumentPool &pool) const
+toolkit::result<kompose::MavenCoordinate> kompose::MavenDocument::GetCoordinate(const MavenDocumentPool &pool) const
+{
+    std::string group, artifact, version;
+
+    if (Group)
+        group = *Group;
+    else if (Parent)
+        group = Parent->Group;
+    else
+        return toolkit::make_error("missing maven document group");
+
+    if (Artifact)
+        artifact = *Artifact;
+    else if (Parent)
+        artifact = Parent->Artifact;
+    else
+        return toolkit::make_error("missing maven document artifact");
+
+    if (Version)
+        version = *Version;
+    else if (Parent)
+        version = Parent->Version;
+    else
+        return toolkit::make_error("missing maven document version");
+
+    if (group.starts_with("${") && group.ends_with('}'))
+    {
+        const auto key = group.substr(2, group.length() - 3);
+
+        if (auto res = GetProperty(pool, key) >> group; !res)
+            return res;
+    }
+
+    if (artifact.starts_with("${") && artifact.ends_with('}'))
+    {
+        const auto key = artifact.substr(2, artifact.length() - 3);
+
+        if (auto res = GetProperty(pool, key) >> artifact; !res)
+            return res;
+    }
+
+    if (version.starts_with("${") && version.ends_with('}'))
+    {
+        const auto key = version.substr(2, version.length() - 3);
+
+        if (auto res = GetProperty(pool, key) >> version; !res)
+            return res;
+    }
+
+    return MavenCoordinate
+    {
+        .Group = std::move(group),
+        .Artifact = std::move(artifact),
+        .Version = std::move(version),
+    };
+}
+
+toolkit::result<std::string> kompose::MavenDocument::GetProperty(
+    const MavenDocumentPool &pool,
+    const std::string &key) const
+{
+    if (const auto it = Properties.find(key); it != Properties.end())
+        return it->second;
+
+    const MavenDocument *parent;
+    if (auto res = GetParent(pool) >> parent; !res)
+        return res;
+
+    if (parent)
+        return parent->GetProperty(pool, key);
+
+    return toolkit::make_error("undefined property '{}'", key);
+}
+
+toolkit::result<const kompose::MavenDocument *> kompose::MavenDocument::GetParent(const MavenDocumentPool &pool) const
 {
     if (!Parent)
         return nullptr;
 
     for (const auto &document : pool.Documents)
     {
-        if (document.Group != Parent->Group)
+        MavenCoordinate document_coordinate;
+        if (auto res = document.GetCoordinate(pool) >> document_coordinate; !res)
+            return res;
+
+        if (document_coordinate.Group != Parent->Group)
             continue;
-        if (document.Artifact != Parent->Group)
+        if (document_coordinate.Artifact != Parent->Group)
             continue;
-        if (document.Version != Parent->Group)
+        if (document_coordinate.Version != Parent->Group)
             continue;
+
         return &document;
     }
 
     return nullptr;
 }
 
-std::unordered_set<const kompose::MavenDocument *> kompose::MavenDocument::GetDependencies(
+toolkit::result<std::unordered_set<const kompose::MavenDocument *>> kompose::MavenDocument::GetDependencies(
     const MavenDocumentPool &pool,
     const uint8_t scopes) const
 {
@@ -68,11 +147,19 @@ std::unordered_set<const kompose::MavenDocument *> kompose::MavenDocument::GetDe
         if (dependency.Scope.value_or(MavenDependencyScope::Compile) & scopes)
             for (const auto &document : pool.Documents)
             {
-                if (document.Group != dependency.Group)
+                MavenCoordinate coordinate;
+                if (auto res = pool.GetCoordinate(*this, dependency) >> coordinate; !res)
+                    return res;
+
+                MavenCoordinate document_coordinate;
+                if (auto res = document.GetCoordinate(pool) >> document_coordinate; !res)
+                    return res;
+
+                if (document_coordinate.Group != coordinate.Group)
                     continue;
-                if (document.Artifact != dependency.Artifact)
+                if (document_coordinate.Artifact != coordinate.Artifact)
                     continue;
-                if (document.Version != dependency.Version)
+                if (document_coordinate.Version != coordinate.Version)
                     continue;
 
                 dependencies.insert(&document);
@@ -82,11 +169,132 @@ std::unordered_set<const kompose::MavenDocument *> kompose::MavenDocument::GetDe
     return dependencies;
 }
 
-std::unordered_set<const kompose::MavenDocument *> kompose::MavenDocument::GetDependencies(
+toolkit::result<std::unordered_set<const kompose::MavenDocument *>> kompose::MavenDocument::GetDependencies(
     const MavenDocumentPool &pool,
     MavenDependencyScope scope) const
 {
     return GetDependencies(pool, static_cast<uint8_t>(scope));
+}
+
+toolkit::result<kompose::MavenCoordinate> kompose::MavenDocumentPool::GetCoordinate(
+    const MavenDocument &document,
+    const MavenDocumentParent &parent) const
+{
+    auto group = parent.Group;
+    auto artifact = parent.Artifact;
+    auto version = parent.Version;
+
+    if (group.starts_with("${") && group.ends_with('}'))
+    {
+        auto key = group.substr(2, group.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            group = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    if (artifact.starts_with("${") && artifact.ends_with('}'))
+    {
+        auto key = artifact.substr(2, artifact.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            artifact = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    if (version.starts_with("${") && version.ends_with('}'))
+    {
+        auto key = version.substr(2, version.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            version = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    return MavenCoordinate
+    {
+        .Group = std::move(group),
+        .Artifact = std::move(artifact),
+        .Version = std::move(version),
+    };
+}
+
+toolkit::result<kompose::MavenCoordinate> kompose::MavenDocumentPool::GetCoordinate(
+    const MavenDocument &document,
+    const MavenDocumentDependency &dependency) const
+{
+    auto group = dependency.Group;
+    auto artifact = dependency.Artifact;
+
+    std::string version;
+    if (dependency.Version)
+        version = *dependency.Version;
+    else if (document.Parent)
+        version = document.Parent->Version;
+    else
+        return toolkit::make_error("missing maven document version");
+
+    if (group.starts_with("${") && group.ends_with('}'))
+    {
+        auto key = group.substr(2, group.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            group = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    if (artifact.starts_with("${") && artifact.ends_with('}'))
+    {
+        auto key = artifact.substr(2, artifact.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            artifact = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    if (version.starts_with("${") && version.ends_with('}'))
+    {
+        auto key = version.substr(2, version.length() - 3);
+
+        if (auto value = document.GetProperty(*this, key))
+            version = std::move(*value);
+        else
+            return toolkit::make_error("missing maven document property '{}'", key);
+    }
+
+    return MavenCoordinate
+    {
+        .Group = std::move(group),
+        .Artifact = std::move(artifact),
+        .Version = std::move(version),
+    };
+}
+
+toolkit::result<const kompose::MavenDocument *> kompose::MavenDocumentPool::GetDocument(
+    const MavenCoordinate &coordinate) const
+{
+    for (const auto &document : Documents)
+    {
+        MavenCoordinate document_coordinate;
+        if (auto res = document.GetCoordinate(*this) >> document_coordinate; !res)
+            return res;
+
+        if (document_coordinate.Group != coordinate.Group)
+            continue;
+        if (document_coordinate.Artifact != coordinate.Artifact)
+            continue;
+        if (document_coordinate.Version != coordinate.Version)
+            continue;
+
+        return &document;
+    }
+
+    return nullptr;
 }
 
 bool kompose::MavenCoordinate::operator==(const MavenCoordinate &other) const
@@ -118,56 +326,170 @@ std::string kompose::MavenCoordinate::get_filename(const std::string &classifier
     return Artifact + '-' + Version + classifier + '.' + extension;
 }
 
-toolkit::result<std::unordered_set<std::filesystem::path>> kompose::MavenCoordinate::resolve(
+toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
+    const Project &project,
+    const http::client &client) const
+{
+    const auto path = locate() / get_filename("pom");
+
+    const auto local_pom = project.Path / "repository" / path;
+
+    if (!std::filesystem::exists(local_pom))
+    {
+        if (std::error_code ec; std::filesystem::create_directories(local_pom.parent_path(), ec), ec)
+            return toolkit::make_error(
+                "failed to create directory '{}': {} ({})",
+                local_pom.parent_path().string(),
+                ec.message(),
+                ec.value());
+
+        auto found = false;
+        for (const auto &repository : project.Repositories.Maven)
+        {
+            if (repository == "local")
+            {
+                const auto *home = getenv("HOME");
+                const auto remote_pom = std::filesystem::path(home) / ".m2" / "repository" / path;
+
+                if (!std::filesystem::exists(remote_pom))
+                    continue;
+
+                if (std::error_code ec;
+                    std::filesystem::copy_file(
+                        remote_pom,
+                        local_pom,
+                        std::filesystem::copy_options::overwrite_existing,
+                        ec), ec)
+                    return toolkit::make_error(
+                        "failed to copy file from '{}' to '{}': {} ({})",
+                        remote_pom.string(),
+                        local_pom.string(),
+                        ec.message(),
+                        ec.value());
+
+                found = true;
+                break;
+            }
+
+            const auto remote_pom = repository / path;
+
+            std::ofstream pom_stream(local_pom, std::ios::binary);
+            http::response_t pom_response
+            {
+                .body = &pom_stream,
+            };
+
+            if (auto res = client.fetch_with_redirects(
+                {
+                    .method = http::method::get,
+                    .location = http::url::parse(remote_pom.string()),
+                    .headers = {},
+                    .body = nullptr,
+                },
+                pom_response); !res)
+                return res;
+
+            if (pom_response.code == http::status_code::not_found)
+                continue;
+
+            if (!http::is_success(pom_response.code))
+                return toolkit::make_error(
+                    "failed to get maven pom: {} ({})",
+                    pom_response.message,
+                    pom_response.code);
+
+            found = true;
+            break;
+        }
+
+        if (!found)
+            return toolkit::make_error(
+                "failed to resolve maven pom '{}:{}:{}'",
+                Group,
+                Artifact,
+                Version);
+    }
+
+    std::ifstream stream(local_pom, std::ios::binary);
+
+    xml::node node;
+    stream >> node;
+
+    if (!node)
+        return toolkit::make_error("failed to parse maven document");
+
+    MavenDocument document;
+    if (!(node >> document))
+        return toolkit::make_error("failed to parse maven document");
+
+    return document;
+}
+
+toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     const Project &project,
     const http::client &client,
-    const MavenResolveScope scope) const
+    const MavenResolveScope scope,
+    const std::unordered_set<MavenCoordinate> &coordinates)
 {
-    // first things first i'ma resolve all pom files from the dependency chain
-    // second things second i'ma resolve all required transitive jar files
-    // you make me a believer, believer... oooooh
+    uint8_t scopes;
+    switch (scope)
+    {
+    case MavenResolveScope::Compile:
+        scopes = MavenDependencyScope::Compile
+                 | MavenDependencyScope::Provided
+                 | MavenDependencyScope::System;
+        break;
+    case MavenResolveScope::Runtime:
+        scopes = MavenDependencyScope::Compile
+                 | MavenDependencyScope::Runtime
+                 | MavenDependencyScope::System;
+        break;
+    }
 
     MavenDocumentPool pool;
     {
+        std::unordered_set<std::string> visited;
+
         std::queue<MavenCoordinate> queue;
-        queue.push(*this);
+        for (const auto &coordinate : coordinates)
+            queue.push(coordinate);
 
         for (; !queue.empty(); queue.pop())
         {
             const auto &coordinate = queue.front();
+
+            if (!visited.insert(std::format("{}:{}", coordinate.Group, coordinate.Artifact)).second)
+                continue;
 
             MavenDocument document;
             if (auto res = coordinate.resolve_pom(project, client) >> document; !res)
                 return res;
 
             pool.Documents.push_back(std::move(document));
+
             const auto &ref = pool.Documents.back();
 
             if (ref.Parent)
-                queue.push(
-                    {
-                        .Group = ref.Parent->Group,
-                        .Artifact = ref.Parent->Artifact,
-                        .Version = ref.Parent->Version,
-                    });
+            {
+                MavenCoordinate c;
+                if (auto res = pool.GetCoordinate(ref, *ref.Parent) >> c; !res)
+                    return res;
+                queue.push(std::move(c));
+            }
 
             for (const auto &dependency : ref.Dependencies)
             {
                 if (dependency.Optional.value_or(false))
                     continue;
 
-                std::string version;
-                if (dependency.Version)
-                    version = *dependency.Version;
-                else
-                    return toolkit::make_error("dependency management not yet implemented");
+                if (!(dependency.Scope.value_or(MavenDependencyScope::Compile) & scopes))
+                    continue;
 
-                queue.push(
-                    {
-                        .Group = dependency.Group,
-                        .Artifact = dependency.Artifact,
-                        .Version = std::move(version),
-                    });
+                MavenCoordinate c;
+                if (auto res = pool.GetCoordinate(ref, dependency) >> c; !res)
+                    return res;
+
+                queue.push(std::move(c));
             }
         }
     }
@@ -175,45 +497,41 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::MavenCoordin
     if (pool.Documents.empty())
         return toolkit::make_error("failed to resolve maven pom documents.");
 
-    std::unordered_set<const MavenDocument *> chain;
+    std::unordered_set<MavenCoordinate> chain;
     {
         std::queue<const MavenDocument *> queue;
-        queue.push(&pool.Documents.front());
-
-        MavenDependencyScope scopes;
-        switch (scope)
+        for (const auto &coordinate : coordinates)
         {
-        case MavenResolveScope::Compile:
-            scopes = MavenDependencyScope::Compile;
-            break;
-        case MavenResolveScope::Runtime:
-            scopes = MavenDependencyScope::Runtime;
-            break;
+            const MavenDocument *document;
+            if (auto res = pool.GetDocument(coordinate) >> document; !res)
+                return res;
+
+            queue.push(document);
         }
 
         for (; !queue.empty(); queue.pop())
         {
             const auto *document = queue.front();
-            chain.insert(document);
 
-            // todo: propagate dependency scope
-            for (const auto *dependency : document->GetDependencies(pool, scopes))
+            MavenCoordinate coordinate;
+            if (auto res = document->GetCoordinate(pool) >> coordinate; !res)
+                return res;
+
+            chain.insert(std::move(coordinate));
+
+            std::unordered_set<const MavenDocument *> dependencies;
+            if (auto res = document->GetDependencies(pool, scopes) >> dependencies; !res)
+                return res;
+
+            for (const auto *dependency : dependencies)
                 queue.push(dependency);
         }
     }
 
     std::unordered_set<std::filesystem::path> paths;
-
-    for (const auto *link : chain)
+    for (const auto &coordinate : chain)
     {
-        MavenCoordinate coordinate
-        {
-            .Group = link->Group,
-            .Artifact = link->Artifact,
-            .Version = link->Version,
-        };
-
-        auto path = coordinate.locate() / coordinate.get_filename("jar");
+        const auto path = coordinate.locate() / coordinate.get_filename("jar");
 
         const auto local_jar = project.Path / "repository" / path;
 
@@ -291,86 +609,12 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::MavenCoordin
         if (!found)
             return toolkit::make_error(
                 "failed to resolve maven jar '{}:{}:{}'",
-                Group,
-                Artifact,
-                Version);
+                coordinate.Group,
+                coordinate.Artifact,
+                coordinate.Version);
     }
 
     return paths;
-}
-
-toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
-    const Project &project,
-    const http::client &client) const
-{
-    const auto path = locate() / get_filename("pom");
-
-    const auto local_pom = project.Path / "repository" / path;
-
-    if (!std::filesystem::exists(local_pom))
-    {
-        if (std::error_code ec; std::filesystem::create_directories(local_pom.parent_path(), ec), ec)
-            return toolkit::make_error(
-                "failed to create directory '{}': {} ({})",
-                local_pom.parent_path().string(),
-                ec.message(),
-                ec.value());
-
-        auto found = false;
-        for (const auto &repository : project.Repositories.Maven)
-        {
-            const auto remote_pom = repository / path;
-
-            std::ofstream pom_stream(local_pom, std::ios::binary);
-            http::response_t pom_response
-            {
-                .body = &pom_stream,
-            };
-
-            if (auto res = client.fetch_with_redirects(
-                {
-                    .method = http::method::get,
-                    .location = http::url::parse(remote_pom.string()),
-                    .headers = {},
-                    .body = nullptr,
-                },
-                pom_response); !res)
-                return res;
-
-            if (pom_response.code == http::status_code::not_found)
-                continue;
-
-            if (!http::is_success(pom_response.code))
-                return toolkit::make_error(
-                    "failed to get maven pom: {} ({})",
-                    pom_response.message,
-                    pom_response.code);
-
-            found = true;
-            break;
-        }
-
-        if (!found)
-            return toolkit::make_error(
-                "failed to resolve maven pom '{}:{}:{}'",
-                Group,
-                Artifact,
-                Version);
-    }
-
-    std::ifstream stream(local_pom, std::ios::binary);
-
-    xml::node node;
-    stream >> node;
-
-    if (!node)
-        return toolkit::make_error("failed to parse maven document");
-
-    MavenDocument document;
-    if (!(node >> document))
-        return toolkit::make_error("failed to parse maven document");
-
-    return document;
 }
 
 bool data::serializer<xml::node, kompose::MavenDocument>::from_data(
@@ -390,17 +634,12 @@ bool data::serializer<xml::element, kompose::MavenDocument>::from_data(
     if (element.tag != "project")
         return false;
 
-    const auto *group_element = element.find("groupId");
-    const auto *artifact_element = element.find("artifactId");
-    const auto *version_element = element.find("version");
-
-    if (!group_element || !artifact_element || !version_element)
-        return false;
-
-    value.Group = group_element->get_text();
-    value.Artifact = artifact_element->get_text();
-    value.Version = version_element->get_text();
-
+    if (const auto *group_element = element.find("groupId"))
+        value.Group = group_element->get_text();
+    if (const auto *artifact_element = element.find("artifactId"))
+        value.Artifact = artifact_element->get_text();
+    if (const auto *version_element = element.find("version"))
+        value.Version = version_element->get_text();
     if (const auto *packaging_element = element.find("packaging"))
         value.Packaging = packaging_element->get_text();
     if (const auto *modules_element = element.find("modules"))
@@ -467,12 +706,6 @@ bool data::serializer<xml::element, kompose::MavenDocumentDependency>::from_data
 
     const auto *group_element = element.find("groupId");
     const auto *artifact_element = element.find("artifactId");
-    const auto *version_element = element.find("version");
-    const auto *classifier_element = element.find("classifier");
-    const auto *scope_element = element.find("scope");
-    const auto *system_path_element = element.find("systemPath");
-    const auto *optional_element = element.find("optional");
-    const auto *exclusions_element = element.find("exclusions");
 
     if (!group_element || !artifact_element)
         return false;
@@ -480,23 +713,23 @@ bool data::serializer<xml::element, kompose::MavenDocumentDependency>::from_data
     value.Group = group_element->get_text();
     value.Artifact = artifact_element->get_text();
 
-    if (version_element)
+    if (const auto *version_element = element.find("version"))
         value.Version = version_element->get_text();
-    if (classifier_element)
+    if (const auto *classifier_element = element.find("classifier"))
         value.Classifier = classifier_element->get_text();
-    if (scope_element)
+    if (const auto *scope_element = element.find("scope"))
     {
         kompose::MavenDependencyScope scope;
         if (!(*scope_element >> scope))
             return false;
         value.Scope = scope;
     }
-    if (system_path_element)
+    if (const auto *system_path_element = element.find("systemPath"))
         value.SystemPath = system_path_element->get_text();
-    if (optional_element)
+    if (const auto *optional_element = element.find("optional"))
         value.Optional = optional_element->get_text() == "true";
 
-    if (exclusions_element)
+    if (const auto *exclusions_element = element.find("exclusions"))
         for (const auto *exclusion_element : exclusions_element->find_all("exclusion"))
         {
             kompose::MavenDocumentDependencyExclusion exclusion;
@@ -538,6 +771,7 @@ bool data::serializer<xml::element, kompose::MavenDependencyScope>::from_data(
         { "runtime", kompose::MavenDependencyScope::Runtime },
         { "test", kompose::MavenDependencyScope::Test },
         { "system", kompose::MavenDependencyScope::System },
+        { "import", kompose::MavenDependencyScope::Import },
     };
 
     if (element.tag != "scope")

@@ -17,6 +17,33 @@ namespace kompose
 {
     struct Project;
 
+    struct MavenDocument;
+    struct MavenDocumentPool;
+
+    enum class MavenResolveScope
+    {
+        Compile,
+        Runtime,
+    };
+
+    struct MavenCoordinate
+    {
+        bool operator==(const MavenCoordinate &other) const;
+
+        [[nodiscard]] std::filesystem::path locate() const;
+
+        [[nodiscard]] std::string get_filename(const std::string &extension) const;
+        [[nodiscard]] std::string get_filename(const std::string &classifier, const std::string &extension) const;
+
+        [[nodiscard]] toolkit::result<MavenDocument> resolve_pom(
+            const Project &project,
+            const http::client &client) const;
+
+        std::string Group;
+        std::string Artifact;
+        std::string Version;
+    };
+
     enum class MavenDependencyScope : uint8_t
     {
         Compile  = 1 << 0,
@@ -24,6 +51,7 @@ namespace kompose
         Runtime  = 1 << 2,
         Test     = 1 << 3,
         System   = 1 << 4,
+        Import   = 1 << 5,
     };
 
     uint8_t operator|(uint8_t a, MavenDependencyScope b);
@@ -60,21 +88,26 @@ namespace kompose
         std::string Version;
     };
 
-    struct MavenDocumentPool;
-
     struct MavenDocument
     {
-        const MavenDocument *GetParent(const MavenDocumentPool &pool) const;
-        std::unordered_set<const MavenDocument *> GetDependencies(
+        [[nodiscard]] toolkit::result<MavenCoordinate> GetCoordinate(const MavenDocumentPool &pool) const;
+
+        [[nodiscard]] toolkit::result<std::string> GetProperty(
+            const MavenDocumentPool &pool,
+            const std::string &key) const;
+
+        toolkit::result<const MavenDocument *> GetParent(const MavenDocumentPool &pool) const;
+
+        [[nodiscard]] toolkit::result<std::unordered_set<const MavenDocument *>> GetDependencies(
             const MavenDocumentPool &pool,
             uint8_t scopes) const;
-        std::unordered_set<const MavenDocument *> GetDependencies(
+        [[nodiscard]] toolkit::result<std::unordered_set<const MavenDocument *>> GetDependencies(
             const MavenDocumentPool &pool,
             MavenDependencyScope scope) const;
 
-        std::string Group;
-        std::string Artifact;
-        std::string Version;
+        std::optional<std::string> Group;
+        std::optional<std::string> Artifact;
+        std::optional<std::string> Version;
 
         std::optional<std::string> Packaging;
 
@@ -91,37 +124,23 @@ namespace kompose
 
     struct MavenDocumentPool
     {
+        [[nodiscard]] toolkit::result<MavenCoordinate> GetCoordinate(
+            const MavenDocument &document,
+            const MavenDocumentParent &parent) const;
+        [[nodiscard]] toolkit::result<MavenCoordinate> GetCoordinate(
+            const MavenDocument &document,
+            const MavenDocumentDependency &dependency) const;
+
+        [[nodiscard]] toolkit::result<const MavenDocument *> GetDocument(const MavenCoordinate &coordinate) const;
+
         std::vector<MavenDocument> Documents;
     };
 
-    enum class MavenResolveScope
-    {
-        Compile,
-        Runtime,
-    };
-
-    struct MavenCoordinate
-    {
-        bool operator==(const MavenCoordinate &other) const;
-
-        [[nodiscard]] std::filesystem::path locate() const;
-
-        [[nodiscard]] std::string get_filename(const std::string &extension) const;
-        [[nodiscard]] std::string get_filename(const std::string &classifier, const std::string &extension) const;
-
-        [[nodiscard]] toolkit::result<std::unordered_set<std::filesystem::path>> resolve(
-            const Project &project,
-            const http::client &client,
-            MavenResolveScope scope) const;
-
-        [[nodiscard]] toolkit::result<MavenDocument> resolve_pom(
-            const Project &project,
-            const http::client &client) const;
-
-        std::string Group;
-        std::string Artifact;
-        std::string Version;
-    };
+    [[nodiscard]] toolkit::result<std::unordered_set<std::filesystem::path>> resolve(
+        const Project &project,
+        const http::client &client,
+        MavenResolveScope scope,
+        const std::unordered_set<MavenCoordinate> &coordinates);
 }
 
 template<>

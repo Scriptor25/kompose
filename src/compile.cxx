@@ -32,10 +32,9 @@ toolkit::result<> kompose::compile(
              const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
 
-    for (const auto &dependency : source_set.Compile.Maven)
     {
         std::unordered_set<std::filesystem::path> paths;
-        if (auto res = dependency.resolve(project, client, MavenResolveScope::Compile) >> paths; !res)
+        if (auto res = resolve(project, client, MavenResolveScope::Compile, source_set.Compile.Maven) >> paths; !res)
             return res;
 
         for (const auto &path : paths)
@@ -53,6 +52,8 @@ toolkit::result<> kompose::compile(
     KotlinCommand command
     {
         .Input = std::move(sources),
+        .ApiVersion = "2.4",
+        .LanguageVersion = "2.4",
         .JvmClassPath = std::move(class_path_string),
         .JvmDestination = destination,
         .JvmTarget = "25",
@@ -69,11 +70,11 @@ toolkit::result<> kompose::compile(
         break;
     }
 
-    std::string out, err;
+    std::stringstream out, err;
     if (auto res = command(out, err); !res)
     {
-        std::cout << out;
-        std::cerr << err;
+        std::cout << out.str();
+        std::cerr << err.str();
         return res;
     }
 

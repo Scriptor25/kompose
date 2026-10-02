@@ -100,7 +100,7 @@ namespace kompose
     struct KotlinCommand
     {
         std::vector<std::string> Build() const;
-        toolkit::result<> operator()(std::string &out, std::string &err) const;
+        toolkit::result<> operator()(std::ostream &out, std::ostream &err) const;
 
         std::unordered_set<std::string> Input;
 

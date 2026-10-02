@@ -68,11 +68,11 @@ toolkit::result<> kompose::package(const Module &module)
         }
     }
 
-    std::string out, err;
+    std::stringstream out, err;
     if (auto res = Process(std::move(args))(out, err); !res)
     {
-        std::cout << out;
-        std::cerr << err;
+        std::cout << out.str();
+        std::cerr << err.str();
         return res;
     }
 
