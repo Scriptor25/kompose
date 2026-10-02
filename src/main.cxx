@@ -192,13 +192,13 @@ static void task_model(const kompose::Project &project)
     std::cout << std::setw(4) << project_node;
 }
 
-[[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Module *> &nodes)
+[[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Module *> &modules)
 {
-    for (const auto *node : nodes)
+    for (const auto *module : modules)
     {
-        std::cerr << "> " << node->Name << ":clean" << std::endl;
+        std::cerr << "> " << module->Name << ":clean" << std::endl;
 
-        const auto &build = node->Build;
+        const auto &build = module->Build;
 
         if (std::error_code ec; std::filesystem::remove_all(build, ec), ec)
             return toolkit::make_error(
@@ -213,14 +213,14 @@ static void task_model(const kompose::Project &project)
 
 [[nodiscard]] static toolkit::result<> task_compile(
     const kompose::Project &project,
-    const std::unordered_set<const kompose::Module *> &nodes,
+    const std::unordered_set<const kompose::Module *> &modules,
     const http::client &client)
 {
-    std::vector<const kompose::Module *> path;
-    if (auto res = kompose::topological_sort(nodes) >> path; !res)
+    std::vector<const kompose::Module *> module_path;
+    if (auto res = kompose::topological_sort(modules) >> module_path; !res)
         return res;
 
-    for (const auto *module : path)
+    for (const auto *module : module_path)
     {
         std::cerr << "> " << module->Name << ":compile" << std::endl;
 
@@ -235,31 +235,35 @@ static void task_model(const kompose::Project &project)
 
 [[nodiscard]] static toolkit::result<> task_launch(
     const kompose::Project &project,
-    const std::unordered_set<const kompose::Module *> &nodes,
+    const std::unordered_set<const kompose::Module *> &modules,
     const http::client &client,
     const std::vector<std::string_view> &program_args)
 {
-    for (const auto *node : nodes)
+    for (const auto *module : modules)
     {
-        if (node->Type != kompose::ModuleType::Application)
+        if (module->Type != kompose::ModuleType::Application)
             continue;
 
-        std::cerr << "> " << node->Name << ":launch" << std::endl;
+        std::cerr << "> " << module->Name << ":launch" << std::endl;
 
-        if (auto res = kompose::launch(project, *node, program_args, client); !res)
+        if (auto res = kompose::launch(project, *module, client, program_args); !res)
             return res;
     }
 
     return {};
 }
 
-[[nodiscard]] static toolkit::result<> task_package(const std::unordered_set<const kompose::Module *> &nodes)
+[[nodiscard]] static toolkit::result<> task_package(
+    const kompose::Project &project,
+    const std::unordered_set<const kompose::Module *> &modules,
+    const http::client &client,
+    const bool fat)
 {
-    for (const auto *node : nodes)
+    for (const auto *module : modules)
     {
-        std::cerr << "> " << node->Name << ":package" << std::endl;
+        std::cerr << "> " << module->Name << ":package" << std::endl;
 
-        if (auto res = kompose::package(*node); !res)
+        if (auto res = kompose::package(project, *module, client, fat); !res)
             return res;
     }
 
@@ -269,6 +273,7 @@ static void task_model(const kompose::Project &project)
 static const args::manifest manifest
 {
     { .id = "project", .kind = args::entry_kind::value, .patterns = { "--project", "-p" } },
+    { .id = "fat", .kind = args::entry_kind::flag, .patterns = { "--fat", "-f" } },
 };
 
 // kompose [(--<option>|-<o>)...] <[module:]task>... [-- <argument>...]
@@ -280,6 +285,7 @@ static const args::manifest manifest
         return res;
 
     const auto project_directory = context.get("project");
+    const auto fat = context.is("fat");
 
     std::unordered_set<std::string_view> task_strings;
     const auto task_count = context.limited() ? context.limit() : context.size();
@@ -524,7 +530,7 @@ static const args::manifest manifest
         return res;
     if (auto res = task_launch(*project, launch_modules, client, program_args); !res)
         return res;
-    if (auto res = task_package(package_modules); !res)
+    if (auto res = task_package(*project, package_modules, client, fat); !res)
         return res;
 
     return {};

@@ -18,7 +18,11 @@ namespace kompose
     [[nodiscard]] toolkit::result<> launch(
         const Project &project,
         const Module &module,
-        const std::vector<std::string_view> &program_args,
-        const http::client &client);
-    [[nodiscard]] toolkit::result<> package(const Module &module);
+        const http::client &client,
+        const std::vector<std::string_view> &program_args);
+    [[nodiscard]] toolkit::result<> package(
+        const Project &project,
+        const Module &module,
+        const http::client &client,
+        bool fat);
 }

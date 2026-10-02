@@ -7,8 +7,8 @@
 toolkit::result<> kompose::launch(
     const Project &project,
     const Module &module,
-    const std::vector<std::string_view> &program_args,
-    const http::client &client)
+    const http::client &client,
+    const std::vector<std::string_view> &program_args)
 {
     switch (module.Type)
     {
