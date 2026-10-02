@@ -232,6 +232,31 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::MavenCoordin
         auto found = false;
         for (const auto &repository : project.Repositories.Maven)
         {
+            if (repository == "local")
+            {
+                const auto *home = getenv("HOME");
+                const auto remote_jar = std::filesystem::path(home) / ".m2" / "repository" / path;
+
+                if (!std::filesystem::exists(remote_jar))
+                    continue;
+
+                if (std::error_code ec;
+                    std::filesystem::copy_file(
+                        remote_jar,
+                        local_jar,
+                        std::filesystem::copy_options::overwrite_existing,
+                        ec), ec)
+                    return toolkit::make_error(
+                        "failed to copy file from '{}' to '{}': {} ({})",
+                        remote_jar.string(),
+                        local_jar.string(),
+                        ec.message(),
+                        ec.value());
+
+                found = true;
+                break;
+            }
+
             const auto remote_jar = repository / path;
 
             std::ofstream jar_stream(local_jar, std::ios::binary);
