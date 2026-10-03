@@ -22,6 +22,7 @@ namespace kompose
 
     enum class MavenResolveScope
     {
+        All,
         Compile,
         Runtime,
     };

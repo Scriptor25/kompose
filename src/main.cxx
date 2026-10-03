@@ -193,6 +193,39 @@ static void task_model(const kompose::Project &project)
     std::cout << std::setw(4) << project_node;
 }
 
+[[nodiscard]] static toolkit::result<> task_resolve(
+    const kompose::Project &project,
+    const std::unordered_set<const kompose::Module *> &modules,
+    const http::client &client)
+{
+    std::unordered_set<kompose::MavenCoordinate> coordinates;
+
+    for (const auto *module : modules)
+    {
+        std::cerr << "> " << module->Name << ":resolve" << std::endl;
+
+        for (const auto source_sets = module->IncludeInCompile();
+             const auto *source_set : source_sets)
+        {
+            coordinates.insert(source_set->Compile.Maven.begin(), source_set->Compile.Maven.end());
+            coordinates.insert(source_set->Runtime.Maven.begin(), source_set->Runtime.Maven.end());
+        }
+    }
+
+    if (coordinates.empty())
+        return {};
+
+    std::unordered_set<std::filesystem::path> paths;
+    if (auto res = kompose::resolve(project, client, kompose::MavenResolveScope::All, coordinates) >> paths; !res)
+        return res;
+
+    std::cerr << "resolved:" << std::endl;
+    for (const auto &path : paths)
+        std::cerr << " - " << path << std::endl;
+
+    return {};
+}
+
 [[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Module *> &modules)
 {
     for (const auto *module : modules)
@@ -422,7 +455,13 @@ static const args::manifest manifest
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
     // TODO: same if already packaged and neither source files nor resources did change, then do not package again
 
-    std::unordered_set<const kompose::Module *> clean_modules, compile_modules, launch_modules, package_modules;
+    std::unordered_set<const kompose::Module *>
+            resolve_modules,
+            clean_modules,
+            compile_modules,
+            launch_modules,
+            package_modules;
+
     for (auto &[task, module_name] : tasks)
     {
         std::unordered_set<const kompose::Module *> modules;
@@ -476,6 +515,14 @@ static const args::manifest manifest
             continue;
         }
 
+        if (task == "resolve")
+        {
+            for (const auto *module : modules)
+                resolve_modules.insert(module);
+
+            continue;
+        }
+
         if (task == "clean")
         {
             for (const auto *module : modules)
@@ -525,6 +572,8 @@ static const args::manifest manifest
         return toolkit::make_error("undefined task {}:{}", module_name.value_or({}), task);
     }
 
+    if (auto res = task_resolve(*project, resolve_modules, client); !res)
+        return res;
     if (auto res = task_clean(clean_modules); !res)
         return res;
     if (auto res = task_compile(*project, compile_modules, client); !res)

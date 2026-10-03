@@ -29,3 +29,5 @@ target_link_libraries(kompose PRIVATE
         toolkit::xml
         ssl
 )
+
+install(TARGETS kompose)

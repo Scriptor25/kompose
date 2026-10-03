@@ -21,7 +21,6 @@ void data::serializer<json::node, kompose::Module>::to_data(
 
     node = json::object
     {
-        { "type", value.Type },
         { "name", value.Name },
         { "path", std::filesystem::relative(value.Path, base) },
         { "source", std::filesystem::relative(value.Source, base) },
@@ -79,6 +78,7 @@ void data::serializer<json::node, kompose::ApplicationModuleData>::to_data(
 {
     node = json::object
     {
+        { "type", json::string("application") },
         { "main", value.Main },
         { "include", value.Include },
     };
@@ -90,6 +90,7 @@ void data::serializer<json::node, kompose::LibraryModuleData>::to_data(
 {
     node = json::object
     {
+        { "type", json::string("library") },
         { "package", value.Package },
         { "include_sources", value.IncludeSources },
         { "include", value.Include },

@@ -434,6 +434,9 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     uint8_t scopes;
     switch (scope)
     {
+    case MavenResolveScope::All:
+        scopes = ~uint8_t{};
+        break;
     case MavenResolveScope::Compile:
         scopes = MavenDependencyScope::Compile
                  | MavenDependencyScope::Provided
