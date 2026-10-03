@@ -23,6 +23,7 @@ void data::serializer<json::node, kompose::Module>::to_data(
     {
         { "type", value.Type },
         { "name", value.Name },
+        { "path", std::filesystem::relative(value.Path, base) },
         { "source", std::filesystem::relative(value.Source, base) },
         { "build", std::filesystem::relative(value.Build, base) },
         { "source_sets", value.SourceSets },

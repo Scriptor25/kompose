@@ -58,6 +58,7 @@ namespace kompose
         ModuleType Type;
 
         std::string Name;
+        std::filesystem::path Path;
         std::filesystem::path Source;
         std::filesystem::path Build;
 

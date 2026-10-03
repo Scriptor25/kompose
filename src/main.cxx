@@ -47,6 +47,7 @@
             .Parent = project.get(),
             .Type = module_config.Type,
             .Name = *module_config.Name,
+            .Path = module_config.Root,
             .Source = source,
             .Build = build,
         };
