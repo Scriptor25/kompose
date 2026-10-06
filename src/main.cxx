@@ -352,6 +352,27 @@ static const args::manifest manifest
         tasks.emplace_back(task, name);
     }
 
+    auto other = false;
+    for (const auto &[task, _] : tasks)
+    {
+        if (task == "version")
+        {
+            task_version();
+            continue;
+        }
+
+        if (task == "help")
+        {
+            task_help();
+            continue;
+        }
+
+        other = true;
+    }
+
+    if (!other)
+        return {};
+
     const auto project_path = std::filesystem::weakly_canonical(
         project_directory
             ? std::filesystem::path(*project_directory)
@@ -462,7 +483,7 @@ static const args::manifest manifest
             launch_modules,
             package_modules;
 
-    for (auto &[task, module_name] : tasks)
+    for (const auto &[task, module_name] : tasks)
     {
         std::unordered_set<const kompose::Module *> modules;
         if (module_name)
@@ -498,16 +519,9 @@ static const args::manifest manifest
         }
 
         if (task == "version")
-        {
-            task_version();
             continue;
-        }
-
         if (task == "help")
-        {
-            task_help();
             continue;
-        }
 
         if (task == "model")
         {
