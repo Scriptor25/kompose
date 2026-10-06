@@ -1,5 +1,8 @@
 #pragma once
 
+#include <hash.hxx>
+#include <process.hxx>
+
 #include <toolkit/result.hxx>
 
 #include <optional>
@@ -99,8 +102,7 @@ namespace kompose
 
     struct KotlinCommand
     {
-        std::vector<std::string> Build() const;
-        toolkit::result<> operator()(std::ostream &out, std::ostream &err) const;
+        Process Build() const;
 
         std::unordered_set<std::string> Input;
 

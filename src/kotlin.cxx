@@ -2,7 +2,7 @@
 #include <kotlin.hxx>
 #include <process.hxx>
 
-std::vector<std::string> kompose::KotlinCommand::Build() const
+kompose::Process kompose::KotlinCommand::Build() const
 {
     std::vector<std::string> args;
     args.emplace_back("kotlinc");
@@ -374,12 +374,5 @@ std::vector<std::string> kompose::KotlinCommand::Build() const
     for (auto &input : Input)
         args.push_back(input);
 
-    return args;
-}
-
-toolkit::result<> kompose::KotlinCommand::operator()(std::ostream &out, std::ostream &err) const
-{
-    auto args = Build();
-
-    return Process(std::move(args))(out, err);
+    return { std::move(args) };
 }

@@ -1,3 +1,4 @@
+#include <fstream>
 #include <kompose.hxx>
 #include <kotlin.hxx>
 
@@ -9,6 +10,11 @@ toolkit::result<> kompose::compile(
     const SourceSet &source_set,
     const http::client &client)
 {
+    const auto destination_path = source_set.Build / "classes";
+    const auto fingerprint_path = source_set.Build / "fingerprint";
+
+    Hash hash;
+
     std::unordered_set<std::string> sources;
     for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Source / "kotlin"))
     {
@@ -20,11 +26,32 @@ toolkit::result<> kompose::compile(
             continue;
 
         sources.insert(path);
+
+        std::ifstream stream(path, std::ios::binary);
+        hash.Push(stream);
     }
 
-    const auto destination = source_set.Build / "classes";
+    std::string target_fingerprint;
+    if (std::filesystem::exists(fingerprint_path))
+    {
+        std::ifstream stream(fingerprint_path, std::ios::binary);
+        stream.seekg(0, std::ios::end);
+        auto count = stream.tellg();
+        stream.seekg(0, std::ios::beg);
 
-    std::filesystem::create_directories(destination);
+        std::vector<char> buffer(count);
+        stream.read(buffer.data(), count);
+
+        target_fingerprint = { buffer.begin(), buffer.end() };
+    }
+
+    if (!std::filesystem::exists(destination_path))
+        if (std::error_code ec; std::filesystem::create_directories(destination_path, ec), ec)
+            return toolkit::make_error(
+                "failed to create directory '{}': {} ({})",
+                destination_path.string(),
+                ec.message(),
+                ec.value());
 
     std::unordered_set<std::filesystem::path> class_path;
     for (const auto *dependency : source_set.Compile.Modules)
@@ -39,6 +66,26 @@ toolkit::result<> kompose::compile(
 
         for (const auto &path : paths)
             class_path.insert(path);
+    }
+
+    for (const auto &path : class_path)
+    {
+        if (std::filesystem::is_directory(path))
+        {
+            for (const auto &entry : std::filesystem::recursive_directory_iterator(path))
+            {
+                if (entry.is_directory())
+                    continue;
+
+                std::ifstream stream(entry.path(), std::ios::binary);
+                hash.Push(stream);
+            }
+        }
+        else
+        {
+            std::ifstream stream(path, std::ios::binary);
+            hash.Push(stream);
+        }
     }
 
     std::string class_path_string;
@@ -56,7 +103,7 @@ toolkit::result<> kompose::compile(
         .ApiVersion = "2.4",
         .LanguageVersion = "2.4",
         .JvmClassPath = std::move(class_path_string),
-        .JvmDestination = destination,
+        .JvmDestination = destination_path,
         .JvmTarget = "25",
         .JvmModuleName = module.Name,
     };
@@ -71,12 +118,26 @@ toolkit::result<> kompose::compile(
         break;
     }
 
+    auto process = command.Build();
+    process.Push(hash);
+
+    std::string fingerprint;
+    hash(fingerprint);
+
+    if (fingerprint == target_fingerprint)
+        return {};
+
     std::stringstream out, err;
-    if (auto res = command(out, err); !res)
+    if (auto res = process(out, err); !res)
     {
         std::cout << out.str();
         std::cerr << err.str();
         return res;
+    }
+
+    {
+        std::ofstream stream(fingerprint_path, std::ios::binary);
+        stream << fingerprint;
     }
 
     return {};

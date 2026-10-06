@@ -109,3 +109,9 @@ toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &
 
     return {};
 }
+
+void kompose::Process::Push(Hash &builder) const
+{
+    for (const auto &arg : Args)
+        builder.Push(arg);
+}
