@@ -185,6 +185,7 @@ static void task_help()
     std::cout << std::endl;
     std::cout << "options:" << std::endl;
     std::cout << " --project, -p <directory>    specify the project directory" << std::endl;
+    std::cout << " --fat,     -f                specify if a fat jar should be generated when packaging" << std::endl;
 }
 
 static void task_model(const kompose::Project &project)
