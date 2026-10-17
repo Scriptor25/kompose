@@ -25,7 +25,8 @@
 [[nodiscard]] static toolkit::result<std::unique_ptr<kompose::Project>> build_project_from_config(
     const std::filesystem::path &path,
     const kompose::ProjectConfig &project_config,
-    const std::vector<kompose::ModuleConfig> &module_configs)
+    const std::vector<kompose::ModuleConfig> &module_configs,
+    const http::client &client)
 {
     auto project = std::make_unique<kompose::Project>(
         kompose::Project
@@ -154,6 +155,20 @@
                 source_set.Runtime.Modules.insert(&(*project)[dependency]);
             for (const auto &dependency : source_set_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(dependency);
+
+            if (auto res = kompose::resolve_tree(
+                               *project,
+                               client,
+                               kompose::MavenResolveScope::ResolveCompile,
+                               source_set.Compile.Maven) >> source_set.Compile.Tree; !res)
+                return res;
+
+            if (auto res = kompose::resolve_tree(
+                               *project,
+                               client,
+                               kompose::MavenResolveScope::ResolveRuntime,
+                               source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
+                return res;
         }
     }
 
@@ -217,7 +232,8 @@ static void task_model(const kompose::Project &project)
         return {};
 
     std::unordered_set<std::filesystem::path> paths;
-    if (auto res = kompose::resolve(project, client, kompose::MavenResolveScope::All, coordinates) >> paths; !res)
+    if (auto res = kompose::resolve(project, client, kompose::MavenResolveScope::ResolveAll, coordinates) >> paths; !
+        res)
         return res;
 
     std::cerr << "resolved:" << std::endl;
@@ -467,12 +483,12 @@ static const args::manifest manifest
         module_configs.push_back(std::move(module_config));
     }
 
-    std::unique_ptr<kompose::Project> project;
-    if (auto res = build_project_from_config(project_path, project_config, module_configs) >> project; !res)
-        return res;
-
     const auto transport = http::create_default_transport(true);
     http::client client(*transport);
+
+    std::unique_ptr<kompose::Project> project;
+    if (auto res = build_project_from_config(project_path, project_config, module_configs, client) >> project; !res)
+        return res;
 
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
     // TODO: same if already packaged and neither source files nor resources did change, then do not package again

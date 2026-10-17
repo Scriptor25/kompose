@@ -431,109 +431,12 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     const MavenResolveScope scope,
     const std::unordered_set<MavenCoordinate> &coordinates)
 {
-    uint8_t scopes;
-    switch (scope)
-    {
-    case MavenResolveScope::All:
-        scopes = MavenDependencyScope::Compile
-                 | MavenDependencyScope::Runtime;
-        break;
-    case MavenResolveScope::Compile:
-        scopes = MavenDependencyScope::Compile
-                 | MavenDependencyScope::Provided
-                 | MavenDependencyScope::System;
-        break;
-    case MavenResolveScope::Runtime:
-        scopes = MavenDependencyScope::Compile
-                 | MavenDependencyScope::Runtime
-                 | MavenDependencyScope::System;
-        break;
-    }
-
-    MavenDocumentPool pool;
-    {
-        std::unordered_set<std::string> visited;
-
-        std::queue<MavenCoordinate> queue;
-        for (const auto &coordinate : coordinates)
-            queue.push(coordinate);
-
-        for (; !queue.empty(); queue.pop())
-        {
-            const auto &coordinate = queue.front();
-
-            if (!visited.insert(std::format("{}:{}", coordinate.Group, coordinate.Artifact)).second)
-                continue;
-
-            MavenDocument document;
-            if (auto res = coordinate.resolve_pom(project, client) >> document; !res)
-                return res;
-
-            pool.Documents.push_back(std::move(document));
-
-            const auto &ref = pool.Documents.back();
-
-            if (ref.Parent)
-            {
-                MavenCoordinate c;
-                if (auto res = pool.GetCoordinate(ref, *ref.Parent) >> c; !res)
-                    return res;
-                queue.push(std::move(c));
-            }
-
-            for (const auto &dependency : ref.Dependencies)
-            {
-                if (dependency.Optional.value_or(false))
-                    continue;
-
-                if (!(dependency.Scope.value_or(MavenDependencyScope::Compile) & scopes))
-                    continue;
-
-                MavenCoordinate c;
-                if (auto res = pool.GetCoordinate(ref, dependency) >> c; !res)
-                    return res;
-
-                queue.push(std::move(c));
-            }
-        }
-    }
-
-    if (pool.Documents.empty())
-        return toolkit::make_error("failed to resolve maven pom documents.");
-
-    std::unordered_set<MavenCoordinate> chain;
-    {
-        std::queue<const MavenDocument *> queue;
-        for (const auto &coordinate : coordinates)
-        {
-            const MavenDocument *document;
-            if (auto res = pool.GetDocument(coordinate) >> document; !res)
-                return res;
-
-            queue.push(document);
-        }
-
-        for (; !queue.empty(); queue.pop())
-        {
-            const auto *document = queue.front();
-
-            MavenCoordinate coordinate;
-            if (auto res = document->GetCoordinate(pool) >> coordinate; !res)
-                return res;
-
-            chain.insert(std::move(coordinate));
-
-            std::unordered_set<const MavenDocument *> dependencies;
-            if (auto res = document->GetDependencies(pool, scopes) >> dependencies; !res)
-                return res;
-
-            for (const auto *dependency : dependencies)
-                queue.push(dependency);
-        }
-    }
+    std::unordered_set<MavenCoordinate> tree;
+    if (auto res = resolve_tree(project, client, scope, coordinates) >> tree; !res)
+        return res;
 
     std::unordered_set<std::filesystem::path> paths;
-    for (const auto &coordinate : chain)
+    for (const auto &coordinate : tree)
     {
         const auto path = coordinate.locate() / coordinate.get_filename("jar");
 
@@ -619,6 +522,125 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     }
 
     return paths;
+}
+
+toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_tree(
+    const Project &project,
+    const http::client &client,
+    MavenResolveScope scope,
+    const std::unordered_set<MavenCoordinate> &coordinates)
+{
+    if (coordinates.empty())
+        return {};
+
+    uint8_t scopes;
+    switch (scope)
+    {
+    case MavenResolveScope::Compile:
+        scopes = MavenDependencyScope::Compile
+                 | MavenDependencyScope::Provided
+                 | MavenDependencyScope::System;
+        break;
+    case MavenResolveScope::Runtime:
+        scopes = MavenDependencyScope::Compile
+                 | MavenDependencyScope::Runtime
+                 | MavenDependencyScope::System;
+        break;
+    case MavenResolveScope::ResolveAll:
+        scopes = MavenDependencyScope::Compile
+                 | MavenDependencyScope::Runtime;
+        break;
+    case MavenResolveScope::ResolveCompile:
+        scopes = 0 | MavenDependencyScope::Compile;
+        break;
+    case MavenResolveScope::ResolveRuntime:
+        scopes = 0 | MavenDependencyScope::Runtime;
+        break;
+    }
+
+    MavenDocumentPool pool;
+    {
+        std::unordered_set<std::string> visited;
+
+        std::queue<MavenCoordinate> queue;
+        for (const auto &coordinate : coordinates)
+            queue.push(coordinate);
+
+        for (; !queue.empty(); queue.pop())
+        {
+            const auto &coordinate = queue.front();
+
+            if (!visited.insert(std::format("{}:{}", coordinate.Group, coordinate.Artifact)).second)
+                continue;
+
+            MavenDocument document;
+            if (auto res = coordinate.resolve_pom(project, client) >> document; !res)
+                return res;
+
+            pool.Documents.push_back(std::move(document));
+
+            const auto &ref = pool.Documents.back();
+
+            if (ref.Parent)
+            {
+                MavenCoordinate c;
+                if (auto res = pool.GetCoordinate(ref, *ref.Parent) >> c; !res)
+                    return res;
+                queue.push(std::move(c));
+            }
+
+            for (const auto &dependency : ref.Dependencies)
+            {
+                if (dependency.Optional.value_or(false))
+                    continue;
+
+                if (!(dependency.Scope.value_or(MavenDependencyScope::Compile) & scopes))
+                    continue;
+
+                MavenCoordinate c;
+                if (auto res = pool.GetCoordinate(ref, dependency) >> c; !res)
+                    return res;
+
+                queue.push(std::move(c));
+            }
+        }
+    }
+
+    if (pool.Documents.empty())
+        return toolkit::make_error("failed to resolve maven pom documents.");
+
+    std::unordered_set<MavenCoordinate> tree;
+    {
+        std::queue<const MavenDocument *> queue;
+        for (const auto &coordinate : coordinates)
+        {
+            const MavenDocument *document;
+            if (auto res = pool.GetDocument(coordinate) >> document; !res)
+                return res;
+
+            queue.push(document);
+        }
+
+        for (; !queue.empty(); queue.pop())
+        {
+            const auto *document = queue.front();
+
+            MavenCoordinate coordinate;
+            if (auto res = document->GetCoordinate(pool) >> coordinate; !res)
+                return res;
+
+            tree.insert(std::move(coordinate));
+
+            std::unordered_set<const MavenDocument *> dependencies;
+            if (auto res = document->GetDependencies(pool, scopes) >> dependencies; !res)
+                return res;
+
+            for (const auto *dependency : dependencies)
+                queue.push(dependency);
+        }
+    }
+
+    return tree;
 }
 
 bool data::serializer<xml::node, kompose::MavenDocument>::from_data(

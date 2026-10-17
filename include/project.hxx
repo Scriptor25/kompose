@@ -19,6 +19,7 @@ namespace kompose
     {
         std::unordered_set<const Module *> Modules;
         std::unordered_set<MavenCoordinate> Maven;
+        std::unordered_set<MavenCoordinate> Tree;
     };
 
     struct SourceSet

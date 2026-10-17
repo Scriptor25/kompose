@@ -22,9 +22,11 @@ namespace kompose
 
     enum class MavenResolveScope
     {
-        All,
         Compile,
         Runtime,
+        ResolveAll,
+        ResolveCompile,
+        ResolveRuntime,
     };
 
     struct MavenCoordinate
@@ -138,6 +140,12 @@ namespace kompose
     };
 
     [[nodiscard]] toolkit::result<std::unordered_set<std::filesystem::path>> resolve(
+        const Project &project,
+        const http::client &client,
+        MavenResolveScope scope,
+        const std::unordered_set<MavenCoordinate> &coordinates);
+
+    [[nodiscard]] toolkit::result<std::unordered_set<MavenCoordinate>> resolve_tree(
         const Project &project,
         const http::client &client,
         MavenResolveScope scope,
