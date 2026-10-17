@@ -49,8 +49,12 @@ toolkit::result<> kompose::launch(
         for (const auto source_sets = dependency->IncludeInCompile();
              const auto *source_set : source_sets)
         {
-            class_path.insert(source_set->Build / "classes");
-            class_path.insert(source_set->Source / "resources");
+            auto classes_directory = source_set->Build / "classes";
+            class_path.insert(classes_directory);
+
+            auto resources_directory = source_set->Source / "resources";
+            if (std::filesystem::exists(resources_directory))
+                class_path.insert(resources_directory);
         }
 
     {

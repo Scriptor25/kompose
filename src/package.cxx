@@ -93,7 +93,8 @@ toolkit::result<> kompose::package(
         add_directory(classes_directory);
 
         auto resources_directory = source_set->Source / "resources";
-        add_directory(resources_directory);
+        if (std::filesystem::exists(resources_directory))
+            add_directory(resources_directory);
 
         if (include_sources)
         {
