@@ -104,7 +104,6 @@ toolkit::result<> kompose::compile(
         .LanguageVersion = "2.4",
         .JvmClassPath = std::move(class_path_string),
         .JvmDestination = destination_path,
-        .JvmTarget = "25",
         .JvmModuleName = module.Name,
     };
 
