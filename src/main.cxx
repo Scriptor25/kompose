@@ -201,6 +201,17 @@ static void task_help()
     std::cout << "options:" << std::endl;
     std::cout << " --project, -p <directory>    specify the project directory" << std::endl;
     std::cout << " --fat,     -f                specify if a fat jar should be generated when packaging" << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "tasks:" << std::endl;
+    std::cout << " version                      print version" << std::endl;
+    std::cout << " help                         print help" << std::endl;
+    std::cout << " model                        write project model json to stdout" << std::endl;
+    std::cout << " resolve                      resolve modules dependencies" << std::endl;
+    std::cout << " clean                        clean modules build directory" << std::endl;
+    std::cout << " compile                      compile modules" << std::endl;
+    std::cout << " launch                       launch modules" << std::endl;
+    std::cout << " package                      package modules" << std::endl;
 }
 
 static void task_model(const kompose::Project &project)
@@ -563,14 +574,6 @@ static const args::manifest manifest
         }
 
         if (task == "compile")
-        {
-            for (const auto *module : modules_with_dependencies)
-                compile_modules.insert(module);
-
-            continue;
-        }
-
-        if (task == "build")
         {
             for (const auto *module : modules_with_dependencies)
                 compile_modules.insert(module);
