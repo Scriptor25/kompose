@@ -330,87 +330,16 @@ toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
     const Project &project,
     const http::client &client) const
 {
-    const auto path = locate() / get_filename("pom");
+    std::filesystem::path local_path;
+    if (auto res = resolve(
+                       project,
+                       client,
+                       *this,
+                       {},
+                       "pom") >> local_path; !res)
+        return res;
 
-    const auto local_pom = project.Path / "repository" / path;
-
-    if (!std::filesystem::exists(local_pom))
-    {
-        if (std::error_code ec; std::filesystem::create_directories(local_pom.parent_path(), ec), ec)
-            return toolkit::make_error(
-                "failed to create directory '{}': {} ({})",
-                local_pom.parent_path().string(),
-                ec.message(),
-                ec.value());
-
-        auto found = false;
-        for (const auto &repository : project.Repositories.Maven)
-        {
-            if (repository == "local")
-            {
-                const auto *home = getenv("HOME");
-                const auto remote_pom = std::filesystem::path(home) / ".m2" / "repository" / path;
-
-                if (!std::filesystem::exists(remote_pom))
-                    continue;
-
-                if (std::error_code ec;
-                    std::filesystem::copy_file(
-                        remote_pom,
-                        local_pom,
-                        std::filesystem::copy_options::overwrite_existing,
-                        ec), ec)
-                    return toolkit::make_error(
-                        "failed to copy file from '{}' to '{}': {} ({})",
-                        remote_pom.string(),
-                        local_pom.string(),
-                        ec.message(),
-                        ec.value());
-
-                found = true;
-                break;
-            }
-
-            const auto remote_pom = repository / path;
-
-            std::ofstream pom_stream(local_pom, std::ios::binary);
-            http::response_t pom_response
-            {
-                .body = &pom_stream,
-            };
-
-            if (auto res = client.fetch_with_redirects(
-                {
-                    .method = http::method::get,
-                    .location = http::url::parse(remote_pom.string()),
-                    .headers = {},
-                    .body = nullptr,
-                },
-                pom_response); !res)
-                return res;
-
-            if (pom_response.code == http::status_code::not_found)
-                continue;
-
-            if (!http::is_success(pom_response.code))
-                return toolkit::make_error(
-                    "failed to get maven pom: {} ({})",
-                    pom_response.message,
-                    pom_response.code);
-
-            found = true;
-            break;
-        }
-
-        if (!found)
-            return toolkit::make_error(
-                "failed to resolve maven pom '{}:{}:{}'",
-                Group,
-                Artifact,
-                Version);
-    }
-
-    std::ifstream stream(local_pom, std::ios::binary);
+    std::ifstream stream(local_path, std::ios::binary);
 
     xml::node node;
     stream >> node;
@@ -423,6 +352,98 @@ toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
         return toolkit::make_error("failed to parse maven document");
 
     return document;
+}
+
+toolkit::result<std::filesystem::path> kompose::resolve(
+    const Project &project,
+    const http::client &client,
+    const MavenCoordinate &coordinate,
+    const std::string &classifier,
+    const std::string &extension)
+{
+    const auto path = coordinate.locate() / coordinate.get_filename(classifier, extension);
+
+    auto local_path = project.Path / "repository" / path;
+
+    if (std::filesystem::exists(local_path))
+        return local_path;
+
+    if (std::error_code ec; std::filesystem::create_directories(local_path.parent_path(), ec), ec)
+        return toolkit::make_error(
+            "failed to create directory '{}': {} ({})",
+            local_path.parent_path().string(),
+            ec.message(),
+            ec.value());
+
+    auto found = false;
+    for (const auto &repository : project.Repositories.Maven)
+    {
+        if (repository == "local")
+        {
+            const auto *home = getenv("HOME");
+            const auto remote_path = std::filesystem::path(home) / ".m2" / "repository" / path;
+
+            if (!std::filesystem::exists(remote_path))
+                continue;
+
+            if (std::error_code ec;
+                std::filesystem::copy_file(
+                    remote_path,
+                    local_path,
+                    std::filesystem::copy_options::overwrite_existing,
+                    ec), ec)
+                return toolkit::make_error(
+                    "failed to copy file from '{}' to '{}': {} ({})",
+                    remote_path.string(),
+                    local_path.string(),
+                    ec.message(),
+                    ec.value());
+
+            found = true;
+            break;
+        }
+
+        const auto remote_path = repository / path;
+
+        std::ofstream stream(local_path, std::ios::binary);
+        http::response_t response
+        {
+            .body = &stream,
+        };
+
+        if (auto res = client.fetch_with_redirects(
+            {
+                .method = http::method::get,
+                .location = http::url::parse(remote_path.string()),
+                .headers = {},
+                .body = nullptr,
+            },
+            response); !res)
+            return res;
+
+        if (response.code == http::status_code::not_found)
+            continue;
+
+        if (!http::is_success(response.code))
+            return toolkit::make_error(
+                "failed to get file '{}' from repository '{}': {} ({})",
+                path.string(),
+                repository,
+                response.message,
+                response.code);
+
+        found = true;
+        break;
+    }
+
+    if (!found)
+        return toolkit::make_error(
+            "failed to resolve maven coordinate '{}:{}:{}'",
+            coordinate.Group,
+            coordinate.Artifact,
+            coordinate.Version);
+
+    return local_path;
 }
 
 toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
@@ -438,87 +459,24 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     std::unordered_set<std::filesystem::path> paths;
     for (const auto &coordinate : tree)
     {
-        const auto path = coordinate.locate() / coordinate.get_filename("jar");
+        std::filesystem::path local_path;
+        if (auto res = resolve(
+                           project,
+                           client,
+                           coordinate,
+                           {},
+                           "jar") >> local_path; !res)
+            return res;
 
-        const auto local_jar = project.Path / "repository" / path;
+        paths.insert(local_path);
 
-        paths.insert(local_jar);
-
-        if (std::filesystem::exists(local_jar))
-            continue;
-
-        if (std::error_code ec; std::filesystem::create_directories(local_jar.parent_path(), ec), ec)
-            return toolkit::make_error(
-                "failed to create directory '{}': {} ({})",
-                local_jar.parent_path().string(),
-                ec.message(),
-                ec.value());
-
-        auto found = false;
-        for (const auto &repository : project.Repositories.Maven)
-        {
-            if (repository == "local")
-            {
-                const auto *home = getenv("HOME");
-                const auto remote_jar = std::filesystem::path(home) / ".m2" / "repository" / path;
-
-                if (!std::filesystem::exists(remote_jar))
-                    continue;
-
-                if (std::error_code ec;
-                    std::filesystem::copy_file(
-                        remote_jar,
-                        local_jar,
-                        std::filesystem::copy_options::overwrite_existing,
-                        ec), ec)
-                    return toolkit::make_error(
-                        "failed to copy file from '{}' to '{}': {} ({})",
-                        remote_jar.string(),
-                        local_jar.string(),
-                        ec.message(),
-                        ec.value());
-
-                found = true;
-                break;
-            }
-
-            const auto remote_jar = repository / path;
-
-            std::ofstream jar_stream(local_jar, std::ios::binary);
-            http::response_t jar_response
-            {
-                .body = &jar_stream,
-            };
-
-            if (auto res = client.fetch_with_redirects(
-                {
-                    .method = http::method::get,
-                    .location = http::url::parse(remote_jar.string()),
-                    .headers = {},
-                    .body = nullptr,
-                },
-                jar_response); !res)
-                return res;
-
-            if (jar_response.code == http::status_code::not_found)
-                continue;
-
-            if (!http::is_success(jar_response.code))
-                return toolkit::make_error(
-                    "failed to get jar: {} ({})",
-                    jar_response.message,
-                    jar_response.code);
-
-            found = true;
-            break;
-        }
-
-        if (!found)
-            return toolkit::make_error(
-                "failed to resolve maven jar '{}:{}:{}'",
-                coordinate.Group,
-                coordinate.Artifact,
-                coordinate.Version);
+        if (auto res = resolve(
+            project,
+            client,
+            coordinate,
+            "-sources",
+            "jar"); !res)
+            return res;
     }
 
     return paths;

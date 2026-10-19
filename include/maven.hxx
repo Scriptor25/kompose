@@ -139,6 +139,13 @@ namespace kompose
         std::vector<MavenDocument> Documents;
     };
 
+    [[nodiscard]] toolkit::result<std::filesystem::path> resolve(
+        const Project &project,
+        const http::client &client,
+        const MavenCoordinate &coordinate,
+        const std::string &classifier,
+        const std::string &extension);
+
     [[nodiscard]] toolkit::result<std::unordered_set<std::filesystem::path>> resolve(
         const Project &project,
         const http::client &client,
