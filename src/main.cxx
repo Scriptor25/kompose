@@ -98,7 +98,6 @@
 
             kompose::LibraryModuleData data
             {
-                .Package = module_data.Package,
                 .IncludeSources = module_data.IncludeSources,
             };
 
@@ -249,6 +248,7 @@ static void task_help()
     std::cout << " compile                      compile modules" << std::endl;
     std::cout << " launch                       launch modules" << std::endl;
     std::cout << " package                      package modules" << std::endl;
+    std::cout << " install                      copy artifacts to local maven repository" << std::endl;
 }
 
 static void task_model(const kompose::Project &project)
@@ -363,6 +363,22 @@ static void task_model(const kompose::Project &project)
         std::cerr << "> " << module->Name << ":package" << std::endl;
 
         if (auto res = kompose::package(project, *module, client, fat); !res)
+            return res;
+    }
+
+    return {};
+}
+
+[[nodiscard]] static toolkit::result<> task_install(
+    const kompose::Project &project,
+    const std::unordered_set<const kompose::Module *> &modules,
+    const http::client &client)
+{
+    for (const auto *module : modules)
+    {
+        std::cerr << "> " << module->Name << ":install" << std::endl;
+
+        if (auto res = kompose::install(project, *module, client); !res)
             return res;
     }
 
@@ -519,7 +535,8 @@ static const args::manifest manifest
             clean_modules,
             compile_modules,
             launch_modules,
-            package_modules;
+            package_modules,
+            install_modules;
 
     for (const auto &[task, module_name] : tasks)
     {
@@ -613,6 +630,20 @@ static const args::manifest manifest
             continue;
         }
 
+        if (task == "install")
+        {
+            for (const auto *module : modules_with_dependencies)
+                compile_modules.insert(module);
+
+            for (const auto *module : modules)
+                package_modules.insert(module);
+
+            for (const auto *module : modules)
+                install_modules.insert(module);
+
+            continue;
+        }
+
         return toolkit::make_error("undefined task {}:{}", module_name.value_or({}), task);
     }
 
@@ -625,6 +656,8 @@ static const args::manifest manifest
     if (auto res = task_launch(*project, launch_modules, client, program_args); !res)
         return res;
     if (auto res = task_package(*project, package_modules, client, fat); !res)
+        return res;
+    if (auto res = task_install(*project, install_modules, client); !res)
         return res;
 
     return {};

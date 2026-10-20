@@ -168,14 +168,8 @@ namespace kompose
         std::unordered_set<std::string> Include;
     };
 
-    enum class LibraryModulePackage
-    {
-        Jar,
-    };
-
     struct LibraryModuleConfigData
     {
-        LibraryModulePackage Package;
         bool IncludeSources;
         std::unordered_set<std::string> Include;
     };
@@ -243,14 +237,6 @@ struct data::serializer<toml::node, kompose::MavenCoordinate>
     static bool from_data(
         const toml::node &node,
         kompose::MavenCoordinate &value);
-};
-
-template<>
-struct data::serializer<toml::node, kompose::LibraryModulePackage>
-{
-    static bool from_data(
-        const toml::node &node,
-        kompose::LibraryModulePackage &value);
 };
 
 template<>

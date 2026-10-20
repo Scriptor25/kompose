@@ -100,7 +100,6 @@ void data::serializer<json::node, kompose::LibraryModuleData>::to_data(
     node = json::object
     {
         { "type", json::string("library") },
-        { "package", value.Package },
         { "include_sources", value.IncludeSources },
         { "include", value.Include },
     };
@@ -143,18 +142,6 @@ void data::serializer<json::node, const kompose::Module *>::to_data(
     const kompose::Module *value)
 {
     node = json::string(value->Name);
-}
-
-void data::serializer<json::node, kompose::LibraryModulePackage>::to_data(
-    json::node &node,
-    const kompose::LibraryModulePackage &value)
-{
-    static const std::unordered_map<kompose::LibraryModulePackage, std::string_view> map
-    {
-        { kompose::LibraryModulePackage::Jar, "jar" },
-    };
-
-    node = json::string(map.at(value));
 }
 
 void data::serializer<json::node, kompose::RepositoriesConfig>::to_data(

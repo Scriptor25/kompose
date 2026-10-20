@@ -177,7 +177,6 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
 
         kompose::LibraryModuleConfigData data;
 
-        ok &= from_data_opt(library["package"], data.Package, kompose::LibraryModulePackage::Jar);
         ok &= from_data_opt(library["sources"], data.IncludeSources, false);
         ok &= from_data_opt(library["include"], data.Include, {});
 
@@ -261,28 +260,6 @@ bool data::serializer<toml::node, kompose::MavenCoordinate>::from_data(
     ok &= node["version"] >> value.Version;
 
     return ok;
-}
-
-bool data::serializer<toml::node, kompose::LibraryModulePackage>::from_data(
-    const toml::node &node,
-    kompose::LibraryModulePackage &value)
-{
-    static const std::unordered_map<std::string, kompose::LibraryModulePackage> map
-    {
-        { "jar", kompose::LibraryModulePackage::Jar },
-    };
-
-    std::string key;
-    if (!(node >> key))
-        return false;
-
-    if (const auto it = map.find(key); it != map.end())
-    {
-        value = it->second;
-        return true;
-    }
-
-    return false;
 }
 
 bool data::serializer<toml::node, kompose::KotlinCompilerConfig>::from_data(

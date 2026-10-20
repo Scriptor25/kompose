@@ -326,43 +326,11 @@ std::string kompose::MavenCoordinate::get_filename(const std::string &classifier
     return Artifact + '-' + Version + classifier + '.' + extension;
 }
 
-toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
-    const Project &project,
-    const http::client &client) const
-{
-    std::filesystem::path local_path;
-    if (auto res = resolve(
-                       project,
-                       client,
-                       *this,
-                       {},
-                       "pom") >> local_path; !res)
-        return res;
-
-    std::ifstream stream(local_path, std::ios::binary);
-
-    xml::node node;
-    stream >> node;
-
-    if (!node)
-        return toolkit::make_error("failed to parse maven document");
-
-    MavenDocument document;
-    if (!(node >> document))
-        return toolkit::make_error("failed to parse maven document");
-
-    return document;
-}
-
-toolkit::result<std::filesystem::path> kompose::resolve(
+toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_direct(
     const Project &project,
     const http::client &client,
-    const MavenCoordinate &coordinate,
-    const std::string &classifier,
-    const std::string &extension)
+    const std::filesystem::path &path) const
 {
-    const auto path = coordinate.locate() / coordinate.get_filename(classifier, extension);
-
     auto local_path = project.Path / "repository" / path;
 
     if (std::filesystem::exists(local_path))
@@ -439,11 +407,51 @@ toolkit::result<std::filesystem::path> kompose::resolve(
     if (!found)
         return toolkit::make_error(
             "failed to resolve maven coordinate '{}:{}:{}'",
-            coordinate.Group,
-            coordinate.Artifact,
-            coordinate.Version);
+            Group,
+            Artifact,
+            Version);
 
     return local_path;
+}
+
+toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
+    const Project &project,
+    const http::client &client,
+    const std::string &extension) const
+{
+    return resolve_file_direct(project, client, get_filename(extension));
+}
+
+toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
+    const Project &project,
+    const http::client &client,
+    const std::string &classifier,
+    const std::string &extension) const
+{
+    return resolve_file_direct(project, client, get_filename(classifier, extension));
+}
+
+toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
+    const Project &project,
+    const http::client &client) const
+{
+    std::filesystem::path local_path;
+    if (auto res = resolve_file(project, client, "pom") >> local_path; !res)
+        return res;
+
+    std::ifstream stream(local_path, std::ios::binary);
+
+    xml::node node;
+    stream >> node;
+
+    if (!node)
+        return toolkit::make_error("failed to parse maven document");
+
+    MavenDocument document;
+    if (!(node >> document))
+        return toolkit::make_error("failed to parse maven document");
+
+    return document;
 }
 
 toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
@@ -460,22 +468,12 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     for (const auto &coordinate : tree)
     {
         std::filesystem::path local_path;
-        if (auto res = resolve(
-                           project,
-                           client,
-                           coordinate,
-                           {},
-                           "jar") >> local_path; !res)
+        if (auto res = coordinate.resolve_file(project, client, "jar") >> local_path; !res)
             return res;
 
         paths.insert(local_path);
 
-        if (auto res = resolve(
-            project,
-            client,
-            coordinate,
-            "-sources",
-            "jar"); !res)
+        if (auto res = coordinate.resolve_file(project, client, "-sources", "jar"); !res)
             return res;
     }
 

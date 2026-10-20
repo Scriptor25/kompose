@@ -25,4 +25,8 @@ namespace kompose
         const Module &module,
         const http::client &client,
         bool fat);
+    [[nodiscard]] toolkit::result<> install(
+        const Project &project,
+        const Module &module,
+        const http::client &client);
 }

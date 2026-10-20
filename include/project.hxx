@@ -42,7 +42,6 @@ namespace kompose
 
     struct LibraryModuleData
     {
-        LibraryModulePackage Package;
         bool IncludeSources;
         std::unordered_set<const SourceSet *> Include;
     };
@@ -186,14 +185,6 @@ struct data::serializer<json::node, kompose::MavenCoordinate>
     static void to_data(
         json::node &node,
         const kompose::MavenCoordinate &value);
-};
-
-template<>
-struct data::serializer<json::node, kompose::LibraryModulePackage>
-{
-    static void to_data(
-        json::node &node,
-        const kompose::LibraryModulePackage &value);
 };
 
 template<>

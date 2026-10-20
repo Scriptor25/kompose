@@ -38,6 +38,20 @@ namespace kompose
         [[nodiscard]] std::string get_filename(const std::string &extension) const;
         [[nodiscard]] std::string get_filename(const std::string &classifier, const std::string &extension) const;
 
+        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file_direct(
+            const Project &project,
+            const http::client &client,
+            const std::filesystem::path &path) const;
+        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
+            const Project &project,
+            const http::client &client,
+            const std::string &extension) const;
+        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
+            const Project &project,
+            const http::client &client,
+            const std::string &classifier,
+            const std::string &extension) const;
+
         [[nodiscard]] toolkit::result<MavenDocument> resolve_pom(
             const Project &project,
             const http::client &client) const;
@@ -138,13 +152,6 @@ namespace kompose
 
         std::vector<MavenDocument> Documents;
     };
-
-    [[nodiscard]] toolkit::result<std::filesystem::path> resolve(
-        const Project &project,
-        const http::client &client,
-        const MavenCoordinate &coordinate,
-        const std::string &classifier,
-        const std::string &extension);
 
     [[nodiscard]] toolkit::result<std::unordered_set<std::filesystem::path>> resolve(
         const Project &project,
