@@ -55,6 +55,11 @@
             .Path = module_config.Path,
             .Source = source,
             .Build = build,
+            .Artifact = { 
+                .Group = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
+                .Artifact = module_config.Artifact.Name.value_or(name),
+                .Version = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
+            },
         };
 
         for (const auto &name : module_config.SourceSets | std::views::keys)
@@ -196,6 +201,11 @@
                                kompose::MavenResolveScope::ResolveRuntime,
                                source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
                 return res;
+            
+            // TODO: use compiler config
+            project_config.CompilerConfig;
+            module_config.CompilerConfig;
+            source_set_config.CompilerConfig;
         }
     }
 

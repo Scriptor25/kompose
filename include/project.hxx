@@ -63,6 +63,8 @@ namespace kompose
         std::filesystem::path Source;
         std::filesystem::path Build;
 
+        MavenCoordinate Artifact;
+
         std::unordered_map<std::string, SourceSet> SourceSets;
 
         std::variant<ApplicationModuleData, LibraryModuleData> Data;
