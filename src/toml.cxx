@@ -3,6 +3,96 @@
 
 #include <toolkit/string.hxx>
 
+void kompose::CommonCompilerConfigData::Merge(const CommonCompilerConfigData &data)
+{
+    if (!KotlinHomePath)
+        KotlinHomePath = data.KotlinHomePath;
+    if (!ApiVersion)
+        ApiVersion = data.ApiVersion;
+    if (!LanguageVersion)
+        LanguageVersion = data.LanguageVersion;
+    OptIn.insert(data.OptIn.begin(), data.OptIn.end());
+    if (!Progressive)
+        Progressive = data.Progressive;
+    PluginOptions.insert(data.PluginOptions.begin(), data.PluginOptions.end());
+    ExtraArguments.insert(ExtraArguments.end(), data.ExtraArguments.begin(), data.ExtraArguments.end());
+}
+
+void kompose::JvmCompilerConfigData::Merge(const JvmCompilerConfigData &data)
+{
+    if (!JdkHomePath)
+        JdkHomePath = data.JdkHomePath;
+    if (!DefaultMode)
+        DefaultMode = data.DefaultMode;
+    if (!Target)
+        Target = data.Target;
+    if (!NoJdk)
+        NoJdk = data.NoJdk;
+    if (!NoStdlib)
+        NoStdlib = data.NoStdlib;
+    if (!NoReflect)
+        NoReflect = data.NoReflect;
+    if (!GenerateJavaParameters)
+        GenerateJavaParameters = data.GenerateJavaParameters;
+}
+
+void kompose::JsCompilerConfigData::Merge(const JsCompilerConfigData &data)
+{
+    if (!ModuleKind)
+        ModuleKind = data.ModuleKind;
+    if (!Target)
+        Target = data.Target;
+    Libraries.insert(data.Libraries.begin(), data.Libraries.end());
+    if (!OutputPrefix)
+        OutputPrefix = data.OutputPrefix;
+    if (!OutputPostfix)
+        OutputPostfix = data.OutputPostfix;
+    if (!SourceMapEmbedSources)
+        SourceMapEmbedSources = data.SourceMapEmbedSources;
+    if (!SourceMapNamesPolicy)
+        SourceMapNamesPolicy = data.SourceMapNamesPolicy;
+    if (!SourceMapPrefix)
+        SourceMapPrefix = data.SourceMapPrefix;
+    SourceMapBaseDirs.insert(data.SourceMapBaseDirs.begin(), data.SourceMapBaseDirs.end());
+    if (!NoStdlib)
+        NoStdlib = data.NoStdlib;
+    if (!GenerateMetaInfo)
+        GenerateMetaInfo = data.GenerateMetaInfo;
+    if (!GenerateSourceMap)
+        GenerateSourceMap = data.GenerateSourceMap;
+}
+
+void kompose::NativeCompilerConfigData::Merge(const NativeCompilerConfigData &data)
+{
+    if (!Target)
+        Target = data.Target;
+    if (!EnableDebug)
+        EnableDebug = data.EnableDebug;
+    if (!EnableAssertions)
+        EnableAssertions = data.EnableAssertions;
+    if (!EnableOptimizations)
+        EnableOptimizations = data.EnableOptimizations;
+    if (!NoStdlib)
+        NoStdlib = data.NoStdlib;
+    if (!NoDefaultLibs)
+        NoDefaultLibs = data.NoDefaultLibs;
+    if (!GenerateTestRunner)
+        GenerateTestRunner = data.GenerateTestRunner;
+    if (!GenerateNoExitTestRunner)
+        GenerateNoExitTestRunner = data.GenerateNoExitTestRunner;
+}
+
+void kompose::KotlinCompilerConfig::Merge(const KotlinCompilerConfig &config)
+{
+    if (Platform == CompilerPlatform::None)
+        Platform = config.Platform;
+
+    Common.Merge(config.Common);
+    Jvm.Merge(config.Jvm);
+    Js.Merge(config.Js);
+    Native.Merge(config.Native);
+}
+
 bool data::serializer<toml::node, kompose::ProjectConfig>::from_data(
     const toml::node &node,
     kompose::ProjectConfig &value)
@@ -26,9 +116,11 @@ bool data::serializer<toml::node, kompose::ProjectConfig>::from_data(
 
     ok &= from_data_opt(repositories["maven"], value.Repositories.Maven);
 
-    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies, value.Dependencies.Common);
     ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
     ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
+
+    ok &= from_data_opt(node["compiler"], value.CompilerConfig);
 
     return ok;
 }
@@ -56,7 +148,7 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
     ok &= artifact["name"] >> value.Artifact.Name;
     ok &= artifact["version"] >> value.Artifact.Version;
 
-    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies, value.Dependencies.Common);
     ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
     ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
 
@@ -93,6 +185,8 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
         return ok;
     }
 
+    ok &= from_data_opt(node["compiler"], value.CompilerConfig);
+
     return false;
 }
 
@@ -110,9 +204,11 @@ bool data::serializer<toml::node, kompose::SourceSetConfig>::from_data(
 
     auto ok = true;
 
-    ok &= from_data_opt(dependencies, value.Dependencies.General);
+    ok &= from_data_opt(dependencies, value.Dependencies.Common);
     ok &= from_data_opt(dependencies["compile"], value.Dependencies.Compile);
     ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
+
+    ok &= from_data_opt(node["compiler"], value.CompilerConfig);
 
     return ok;
 }
@@ -187,4 +283,156 @@ bool data::serializer<toml::node, kompose::LibraryModulePackage>::from_data(
     }
 
     return false;
+}
+
+bool data::serializer<toml::node, kompose::KotlinCompilerConfig>::from_data(
+    const toml::node &node,
+    kompose::KotlinCompilerConfig &value)
+{
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= from_data_opt(node["platform"], value.Platform);
+    ok &= from_data_opt(node["common"], value.Common);
+    ok &= from_data_opt(node["jvm"], value.Jvm);
+    ok &= from_data_opt(node["js"], value.Js);
+    ok &= from_data_opt(node["native"], value.Native);
+
+    return ok;
+}
+
+bool data::serializer<toml::node, kompose::CompilerPlatform>::from_data(
+    const toml::node &node,
+    kompose::CompilerPlatform &value)
+{
+    static const std::unordered_map<std::string, kompose::CompilerPlatform> map
+    {
+        { "jvm", kompose::CompilerPlatform::Jvm },
+        { "js", kompose::CompilerPlatform::Js },
+        { "native", kompose::CompilerPlatform::Native },
+    };
+
+    std::string key;
+    if (!(node >> key))
+        return false;
+
+    if (const auto it = map.find(key); it != map.end())
+    {
+        value = it->second;
+        return true;
+    }
+
+    return false;
+}
+
+bool data::serializer<toml::node, kompose::CommonCompilerConfigData>::from_data(
+    const toml::node &node,
+    kompose::CommonCompilerConfigData &value)
+{
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= node["kotlinHomePath"] >> value.KotlinHomePath;
+    ok &= node["apiVersion"] >> value.ApiVersion;
+    ok &= node["languageVersion"] >> value.LanguageVersion;
+
+    ok &= from_data_opt(node["optIn"], value.OptIn);
+    ok &= node["progressive"] >> value.Progressive;
+    ok &= from_data_opt(node["pluginOptions"], value.PluginOptions);
+    ok &= from_data_opt(node["extraArguments"], value.ExtraArguments);
+
+    return ok;
+}
+
+bool data::serializer<toml::node, kompose::JvmCompilerConfigData>::from_data(
+    const toml::node &node,
+    kompose::JvmCompilerConfigData &value)
+{
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= node["jdkHomePath"] >> value.JdkHomePath;
+    ok &= node["defaultMode"] >> value.DefaultMode;
+    ok &= node["target"] >> value.Target;
+
+    ok &= node["noJdk"] >> value.NoJdk;
+    ok &= node["noStdlib"] >> value.NoStdlib;
+    ok &= node["noReflect"] >> value.NoReflect;
+
+    ok &= node["generateJavaParameters"] >> value.GenerateJavaParameters;
+
+    return ok;
+}
+
+bool data::serializer<toml::node, kompose::JsCompilerConfigData>::from_data(
+    const toml::node &node,
+    kompose::JsCompilerConfigData &value)
+{
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= node["moduleKind"] >> value.ModuleKind;
+    ok &= node["target"] >> value.Target;
+
+    ok &= from_data_opt(node["libraries"], value.Libraries);
+
+    ok &= node["outputPrefix"] >> value.OutputPrefix;
+    ok &= node["outputPostfix"] >> value.OutputPostfix;
+
+    ok &= node["sourceMapEmbedSources"] >> value.SourceMapEmbedSources;
+    ok &= node["sourceMapNamesPolicy"] >> value.SourceMapNamesPolicy;
+    ok &= node["sourceMapPrefix"] >> value.SourceMapPrefix;
+
+    ok &= from_data_opt(node["sourceMapBaseDirs"], value.SourceMapBaseDirs);
+
+    ok &= node["noStdlib"] >> value.NoStdlib;
+
+    ok &= node["generateMetaInfo"] >> value.GenerateMetaInfo;
+    ok &= node["generateSourceMap"] >> value.GenerateSourceMap;
+
+    return ok;
+}
+
+bool data::serializer<toml::node, kompose::NativeCompilerConfigData>::from_data(
+    const toml::node &node,
+    kompose::NativeCompilerConfigData &value)
+{
+    if (!node.is<toml::table>())
+        return false;
+
+    auto ok = true;
+
+    ok &= node["target"] >> value.Target;
+
+    ok &= node["enableDebug"] >> value.EnableDebug;
+    ok &= node["enableAssertions"] >> value.EnableAssertions;
+    ok &= node["enableOptimizations"] >> value.EnableOptimizations;
+
+    ok &= node["noStdlib"] >> value.NoStdlib;
+    ok &= node["noDefaultLibs"] >> value.NoDefaultLibs;
+
+    ok &= node["generateTestRunner"] >> value.GenerateTestRunner;
+    ok &= node["generateNoExitTestRunner"] >> value.GenerateNoExitTestRunner;
+
+    return ok;
+}
+
+bool data::serializer<toml::node, std::filesystem::path>::from_data(
+    const toml::node &node,
+    std::filesystem::path &value)
+{
+    std::string str;
+    if (!(node >> str))
+        return false;
+
+    value = std::move(str);
+    return true;
 }

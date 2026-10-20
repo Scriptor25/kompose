@@ -104,8 +104,7 @@ void data::serializer<json::node, kompose::Dependency>::to_data(
     node = json::object
     {
         { "modules", value.Modules },
-        { "maven", value.Maven },
-        { "tree", value.Tree },
+        { "maven", value.Tree },
     };
 }
 

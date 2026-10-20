@@ -15,6 +15,97 @@
 
 namespace kompose
 {
+    enum class CompilerPlatform
+    {
+        None,
+        Jvm,
+        Js,
+        Native,
+    };
+
+    struct CommonCompilerConfigData
+    {
+        void Merge(const CommonCompilerConfigData &data);
+
+        std::optional<std::string> KotlinHomePath;
+        
+        std::optional<std::string> ApiVersion;
+        std::optional<std::string> LanguageVersion;
+
+        std::unordered_set<std::string> OptIn;
+        std::optional<bool> Progressive;
+
+        std::unordered_map<std::string, std::string> PluginOptions;
+
+        std::vector<std::string> ExtraArguments;
+    };
+
+    struct JvmCompilerConfigData
+    {
+        void Merge(const JvmCompilerConfigData &data);
+
+        std::optional<std::string> JdkHomePath;
+        std::optional<std::string> DefaultMode;
+        std::optional<std::string> Target;
+
+        std::optional<bool> NoJdk;
+        std::optional<bool> NoStdlib;
+        std::optional<bool> NoReflect;
+        
+        std::optional<bool> GenerateJavaParameters;
+    };
+
+    struct JsCompilerConfigData
+    {
+        void Merge(const JsCompilerConfigData &data);
+
+        std::optional<std::string> ModuleKind;
+        std::optional<std::string> Target;
+        std::unordered_set<std::string> Libraries;
+
+        std::optional<std::filesystem::path> OutputPrefix; 
+        std::optional<std::filesystem::path> OutputPostfix;
+
+        std::optional<std::string> SourceMapEmbedSources;
+        std::optional<std::string> SourceMapNamesPolicy;
+        std::optional<std::string> SourceMapPrefix;
+        std::unordered_set<std::filesystem::path> SourceMapBaseDirs;
+
+        std::optional<bool> NoStdlib;
+
+        std::optional<bool> GenerateMetaInfo;
+        std::optional<bool> GenerateSourceMap;
+    };
+
+    struct NativeCompilerConfigData
+    {
+        void Merge(const NativeCompilerConfigData &data);
+
+        std::optional<std::string> Target;
+
+        std::optional<bool> EnableDebug;
+        std::optional<bool> EnableAssertions;
+        std::optional<bool> EnableOptimizations;
+
+        std::optional<bool> NoStdlib;
+        std::optional<bool> NoDefaultLibs;
+
+        std::optional<bool> GenerateTestRunner;
+        std::optional<bool> GenerateNoExitTestRunner;
+    };
+
+    struct KotlinCompilerConfig
+    {
+        void Merge(const KotlinCompilerConfig &config);
+
+        CompilerPlatform Platform;
+
+        CommonCompilerConfigData Common;
+        JvmCompilerConfigData Jvm;
+        JsCompilerConfigData Js;
+        NativeCompilerConfigData Native;
+    };
+
     struct ProjectArtifactConfig
     {
         std::optional<std::string> Group;
@@ -46,7 +137,7 @@ namespace kompose
 
     struct DependenciesConfig
     {
-        DependencyConfig General;
+        DependencyConfig Common;
         DependencyConfig Compile;
         DependencyConfig Runtime;
     };
@@ -61,6 +152,8 @@ namespace kompose
 
         RepositoriesConfig Repositories;
         DependenciesConfig Dependencies;
+    
+        KotlinCompilerConfig CompilerConfig;
     };
 
     enum class ModuleType
@@ -90,11 +183,12 @@ namespace kompose
     struct SourceSetConfig
     {
         DependenciesConfig Dependencies;
+        KotlinCompilerConfig CompilerConfig;
     };
 
     struct ModuleConfig
     {
-        std::filesystem::path Root;
+        std::filesystem::path Path;
 
         ModuleType Type;
         std::optional<std::string> Name;
@@ -106,6 +200,8 @@ namespace kompose
         std::unordered_map<std::string, SourceSetConfig> SourceSets;
 
         std::variant<ApplicationModuleConfigData, LibraryModuleConfigData> Data;
+    
+        KotlinCompilerConfig CompilerConfig;
     };
 } // namespace kompose
 
@@ -155,4 +251,60 @@ struct data::serializer<toml::node, kompose::LibraryModulePackage>
     static bool from_data(
         const toml::node &node,
         kompose::LibraryModulePackage &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::KotlinCompilerConfig>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::KotlinCompilerConfig &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::CompilerPlatform>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::CompilerPlatform &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::CommonCompilerConfigData>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::CommonCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::JvmCompilerConfigData>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::JvmCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::JsCompilerConfigData>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::JsCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::NativeCompilerConfigData>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::NativeCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<toml::node, std::filesystem::path>
+{
+    static bool from_data(
+        const toml::node &node,
+        std::filesystem::path &value);
 };

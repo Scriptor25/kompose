@@ -92,6 +92,7 @@ namespace kompose
 
     enum class KotlinNativeProduce
     {
+        None,
         Program,
         Static,
         Dynamic,
@@ -171,7 +172,7 @@ namespace kompose
         std::optional<std::string> JvmDestination;
         /** -include-runtime */
         bool JvmIncludeRuntime{};
-        /** -jdk-home-path <paht> */
+        /** -jdk-home-path <path> */
         std::optional<std::string> JvmJdkHomePath;
         /** -Xjdk-release <version> */
         std::optional<std::string> JvmJdkRelease;
@@ -278,7 +279,7 @@ namespace kompose
          * -produce (program|static|dynamic|framework|library|bitcode)
          * -p (program|static|dynamic|framework|library|bitcode)
          */
-        KotlinNativeProduce NativeProduce;
+        KotlinNativeProduce NativeProduce{};
         /** -repo <path> | -r <path> */
         std::unordered_set<std::string> NativeRepos;
         /** -target <target> */

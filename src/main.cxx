@@ -28,7 +28,7 @@
     const std::vector<kompose::ModuleConfig> &module_configs,
     const http::client &client)
 {
-    auto project = std::make_unique<kompose::Project>(
+    auto project_ptr = std::make_unique<kompose::Project>(
         kompose::Project
         {
             .Name = *project_config.Name,
@@ -37,18 +37,22 @@
         }
     );
 
+    auto &project = *project_ptr;
+
     for (const auto &module_config : module_configs)
     {
-        auto &module = (*project)[*module_config.Name];
+        const auto &name = *module_config.Name;
 
-        const auto source = module_config.Root / "src";
-        const auto build = path / "build" / *module_config.Name;
+        auto &module = project[name];
+
+        const auto source = module_config.Path / "src";
+        const auto build = path / "build" / name;
 
         module = {
-            .Parent = project.get(),
+            .Parent = &project,
             .Type = module_config.Type,
-            .Name = *module_config.Name,
-            .Path = module_config.Root,
+            .Name = name,
+            .Path = module_config.Path,
             .Source = source,
             .Build = build,
         };
@@ -108,63 +112,86 @@
 
     for (const auto &module_config : module_configs)
     {
-        auto &module = (*project)[*module_config.Name];
+        const auto &name = *module_config.Name;
+
+        auto &module = project[name];
 
         for (const auto &[name, source_set_config] : module_config.SourceSets)
         {
             auto &source_set = module[name];
 
-            for (const auto &dependency : module_config.Dependencies.General.Modules)
+            for (const auto &dependency : project_config.Dependencies.Common.Modules)
             {
-                source_set.Compile.Modules.insert(&(*project)[dependency]);
-                source_set.Runtime.Modules.insert(&(*project)[dependency]);
+                source_set.Compile.Modules.insert(&project[dependency]);
+                source_set.Runtime.Modules.insert(&project[dependency]);
             }
-            for (const auto &dependency : module_config.Dependencies.General.Maven)
+            for (const auto &dependency : project_config.Dependencies.Common.Maven)
+            {
+                source_set.Compile.Maven.insert(dependency);
+                source_set.Runtime.Maven.insert(dependency);
+            }
+
+            for (const auto &dependency : project_config.Dependencies.Compile.Modules)
+                source_set.Compile.Modules.insert(&project[dependency]);
+            for (const auto &dependency : project_config.Dependencies.Compile.Maven)
+                source_set.Compile.Maven.insert(dependency);
+
+            for (const auto &dependency : project_config.Dependencies.Runtime.Modules)
+                source_set.Runtime.Modules.insert(&project[dependency]);
+            for (const auto &dependency : project_config.Dependencies.Runtime.Maven)
+                source_set.Runtime.Maven.insert(dependency);
+
+            for (const auto &dependency : module_config.Dependencies.Common.Modules)
+            {
+                source_set.Compile.Modules.insert(&project[dependency]);
+                source_set.Runtime.Modules.insert(&project[dependency]);
+            }
+            for (const auto &dependency : module_config.Dependencies.Common.Maven)
             {
                 source_set.Compile.Maven.insert(dependency);
                 source_set.Runtime.Maven.insert(dependency);
             }
 
             for (const auto &dependency : module_config.Dependencies.Compile.Modules)
-                source_set.Compile.Modules.insert(&(*project)[dependency]);
+                source_set.Compile.Modules.insert(&project[dependency]);
             for (const auto &dependency : module_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(dependency);
 
             for (const auto &dependency : module_config.Dependencies.Runtime.Modules)
-                source_set.Runtime.Modules.insert(&(*project)[dependency]);
+                source_set.Runtime.Modules.insert(&project[dependency]);
             for (const auto &dependency : module_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(dependency);
 
-            for (const auto &dependency : source_set_config.Dependencies.General.Modules)
+            for (const auto &dependency : source_set_config.Dependencies.Common.Modules)
             {
-                source_set.Compile.Modules.insert(&(*project)[dependency]);
-                source_set.Runtime.Modules.insert(&(*project)[dependency]);
+                source_set.Compile.Modules.insert(&project[dependency]);
+                source_set.Runtime.Modules.insert(&project[dependency]);
             }
-            for (const auto &dependency : source_set_config.Dependencies.General.Maven)
+            for (const auto &dependency : source_set_config.Dependencies.Common.Maven)
             {
                 source_set.Compile.Maven.insert(dependency);
                 source_set.Runtime.Maven.insert(dependency);
             }
 
             for (const auto &dependency : source_set_config.Dependencies.Compile.Modules)
-                source_set.Compile.Modules.insert(&(*project)[dependency]);
+                source_set.Compile.Modules.insert(&project[dependency]);
             for (const auto &dependency : source_set_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(dependency);
 
             for (const auto &dependency : source_set_config.Dependencies.Runtime.Modules)
-                source_set.Runtime.Modules.insert(&(*project)[dependency]);
+                source_set.Runtime.Modules.insert(&project[dependency]);
             for (const auto &dependency : source_set_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(dependency);
 
             if (auto res = kompose::resolve_tree(
-                               *project,
+                               project,
                                client,
                                kompose::MavenResolveScope::ResolveCompile,
                                source_set.Compile.Maven) >> source_set.Compile.Tree; !res)
                 return res;
 
             if (auto res = kompose::resolve_tree(
-                               *project,
+                               project,
                                client,
                                kompose::MavenResolveScope::ResolveRuntime,
                                source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
@@ -172,7 +199,7 @@
         }
     }
 
-    return project;
+    return project_ptr;
 }
 
 namespace
@@ -459,37 +486,10 @@ static const args::manifest manifest
             continue;
         }
 
-        module_config.Root = module_path;
+        module_config.Path = module_path;
 
         if (!module_config.Name)
             module_config.Name = module_name;
-
-        if (!module_config.Artifact.Name)
-            module_config.Artifact.Name = module_config.Name;
-
-        if (!module_config.Artifact.Group)
-            module_config.Artifact.Group = project_config.Artifact.Group;
-
-        if (!module_config.Artifact.Version)
-            module_config.Artifact.Version = project_config.Artifact.Version;
-
-        for (const auto &entry : project_config.Dependencies.General.Modules)
-            module_config.Dependencies.General.Modules.insert(entry);
-
-        for (const auto &entry : project_config.Dependencies.General.Maven)
-            module_config.Dependencies.General.Maven.insert(entry);
-
-        for (const auto &entry : project_config.Dependencies.Compile.Modules)
-            module_config.Dependencies.Compile.Modules.insert(entry);
-
-        for (const auto &entry : project_config.Dependencies.Compile.Maven)
-            module_config.Dependencies.Compile.Maven.insert(entry);
-
-        for (const auto &entry : project_config.Dependencies.Runtime.Modules)
-            module_config.Dependencies.Runtime.Modules.insert(entry);
-
-        for (const auto &entry : project_config.Dependencies.Runtime.Maven)
-            module_config.Dependencies.Runtime.Maven.insert(entry);
 
         module_configs.push_back(std::move(module_config));
     }

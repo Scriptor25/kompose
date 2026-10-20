@@ -1,4 +1,3 @@
-#include <iostream>
 #include <kotlin.hxx>
 #include <process.hxx>
 
@@ -367,7 +366,112 @@ kompose::Process kompose::KotlinCommand::Build() const
 
 #pragma region Native
 
-    // TODO
+    if (NativeEnableAssertions)
+        args.emplace_back("-enable-assertions");
+    if (NativeEntry)
+    {
+        args.emplace_back("-entry");
+        args.push_back(*NativeEntry);
+    }
+    if (NativeEmitDebugInformation)
+        args.emplace_back("-g");
+    if (NativeGenerateTestRunner)
+        args.emplace_back("-generate-test-runner");
+    if (NativeGenerateNoExitTestRunner)
+        args.emplace_back("-generate-no-exit-test-runner");
+    for (const auto &entry : NativeIncludeBinaries)
+    {
+        args.emplace_back("-include-binary");
+        args.push_back(entry);
+    }
+    for (const auto &entry : NativeLibraries)
+    {
+        args.emplace_back("-library");
+        args.push_back(entry);
+    }
+    if (NativeLibraryVersion)
+    {
+        args.emplace_back("-library-version");
+        args.push_back(*NativeLibraryVersion);
+    }
+    for (const auto &entry : NativeLinkerOptions)
+    {
+        args.emplace_back("-linker-option");
+        args.push_back(entry);
+    }
+    if (NativeManifest)
+    {
+        args.emplace_back("-manifest");
+        args.push_back(*NativeManifest);
+    }
+    if (NativeModuleName)
+    {
+        args.emplace_back("-module-name");
+        args.push_back(*NativeModuleName);
+    }
+    for (const auto &entry : NativeBitcodeLibraries)
+    {
+        args.emplace_back("-native-library");
+        args.push_back(entry);
+    }
+    if (NativeNoDefaultLibs)
+        args.emplace_back("-no-default-libs");
+    if (NativeNoMain)
+        args.emplace_back("-nomain");
+    if (NativeNoPack)
+        args.emplace_back("-nopack");
+    if (NativeNoStdlib)
+        args.emplace_back("-nostdlib");
+    if (NativeOptimize)
+        args.emplace_back("-opt");
+    if (NativeOutput)
+    {
+        args.emplace_back("-output");
+        args.push_back(*NativeOutput);
+    }
+    switch (NativeProduce)
+    {
+    case KotlinNativeProduce::None:
+        break;
+    case KotlinNativeProduce::Program:
+        args.emplace_back("-produce");
+        args.emplace_back("program");
+        break;
+    case KotlinNativeProduce::Static:
+        args.emplace_back("-produce");
+        args.emplace_back("static");
+        break;
+    case KotlinNativeProduce::Dynamic:
+        args.emplace_back("-produce");
+        args.emplace_back("dynamic");
+        break;
+    case KotlinNativeProduce::Framework:
+        args.emplace_back("-produce");
+        args.emplace_back("framework");
+        break;
+    case KotlinNativeProduce::Library:
+        args.emplace_back("-produce");
+        args.emplace_back("library");
+        break;
+    case KotlinNativeProduce::Bitcode:
+        args.emplace_back("-produce");
+        args.emplace_back("bitcode");
+        break;
+    }
+    for (const auto &entry : NativeRepos)
+    {
+        args.emplace_back("-repo");
+        args.push_back(entry);
+    }
+    if (NativeTarget)
+    {
+        args.emplace_back("-target");
+        args.push_back(*NativeTarget);
+    }
+    if (NativeCcallMode)
+        args.emplace_back("-Xccall-mode");
+    for (const auto &[fst, snd] : NativeOverrideKonanProperties)
+        args.push_back(std::format("-Xoverride-konan-properties=min.version.{}={}", fst, snd));
 
 #pragma endregion
 
