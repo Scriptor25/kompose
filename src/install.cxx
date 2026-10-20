@@ -31,46 +31,50 @@ toolkit::result<> kompose::install(
 
     const auto pom_path = repository / module.Artifact.get_filename("pom");
 
-    if (std::error_code ec; std::filesystem::copy_file(src_binary_bundle_path, dst_binary_bundle_path, ec), ec)
+    if (std::error_code ec; std::filesystem::copy_file(
+                            src_binary_bundle_path,
+                            dst_binary_bundle_path,
+                            std::filesystem::copy_options::overwrite_existing,
+                            ec), ec)
         return toolkit::make_error("failed to copy file from '{}' to '{}': {} ({})",
             src_binary_bundle_path.string(),
             dst_binary_bundle_path.string(),
             ec.message(),
             ec.value());
-    if (std::error_code ec; std::filesystem::copy_file(src_sources_bundle_path, dst_sources_bundle_path, ec), ec)
+    if (std::error_code ec; std::filesystem::copy_file(
+                            src_sources_bundle_path,
+                            dst_sources_bundle_path,
+                            std::filesystem::copy_options::overwrite_existing,
+                            ec), ec)
         return toolkit::make_error("failed to copy file from '{}' to '{}': {} ({})",
             src_sources_bundle_path.string(),
             dst_sources_bundle_path.string(),
             ec.message(),
             ec.value());
     
-    constexpr auto project_template = R"(
-        <?xml version="1.0" encoding="UTF-8"?>
-        <project xmlns="http://maven.apache.org/POM/4.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
+    constexpr auto project_template = R"(<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
+    <groupId>{}</groupId>
+    <artifactId>{}</artifactId>
+    <version>{}</version>
+
+    <packaging>jar</packaging>
+
+    <dependencies>{}
+    </dependencies>
+</project>)";
+
+    constexpr auto dependency_template = R"(
+        <dependency>
             <groupId>{}</groupId>
             <artifactId>{}</artifactId>
             <version>{}</version>
-
-            <packaging>jar</packaging>
-
-            <dependencies>
-                {}
-            </dependencies>
-        </project>
-    )";
-
-    constexpr auto dependency_template = R"(
-                <dependency>
-                    <groupId>{}</groupId>
-                    <artifactId>{}</artifactId>
-                    <version>{}</version>
-                    <scope>{}</scope>
-                </dependency>
-    )";
+            <scope>{}</scope>
+        </dependency>)";
 
     std::string dependencies;
     for (const auto *source_set : module.IncludeInCompile())
