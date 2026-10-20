@@ -41,7 +41,7 @@ namespace kompose
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file_direct(
             const Project &project,
             const http::client &client,
-            const std::filesystem::path &path) const;
+            const std::string &filename) const;
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
             const Project &project,
             const http::client &client,

@@ -329,8 +329,10 @@ std::string kompose::MavenCoordinate::get_filename(const std::string &classifier
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_direct(
     const Project &project,
     const http::client &client,
-    const std::filesystem::path &path) const
+    const std::string &filename) const
 {
+    auto path = locate() / filename;
+
     auto local_path = project.Path / "repository" / path;
 
     if (std::filesystem::exists(local_path))
