@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <kompose.hxx>
 
 #include <cstdlib>
@@ -16,6 +17,14 @@ toolkit::result<> kompose::install(
     
     const auto *home = getenv("HOME");
     const auto repository = std::filesystem::path(home) / ".m2" / "repository" / module.Artifact.locate();
+
+    if (!std::filesystem::exists(repository))
+        if (std::error_code ec; std::filesystem::create_directories(repository, ec), ec)
+            return toolkit::make_error(
+                "failed to create directories '{}': {} ({})",
+                repository.string(),
+                ec.message(),
+                ec.value());
 
     const auto dst_binary_bundle_path = repository / binary_bundle_filename;
     const auto dst_sources_bundle_path = repository / sources_bundle_filename;
