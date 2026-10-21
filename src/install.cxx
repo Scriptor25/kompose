@@ -10,7 +10,7 @@ toolkit::result<> kompose::install(
     const http::client &client)
 {
     const auto binary_bundle_filename = module.Artifact.get_filename("jar");
-    const auto sources_bundle_filename = module.Artifact.get_filename("-sources", "jar");
+    const auto sources_bundle_filename = module.Artifact.get_filename("sources", "jar");
 
     const auto src_binary_bundle_path = module.Build / binary_bundle_filename;
     const auto src_sources_bundle_path = module.Build / sources_bundle_filename;

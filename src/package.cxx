@@ -155,7 +155,7 @@ toolkit::result<> kompose::package(
     const auto fat_directory = module.Build / "fat";
 
     const auto sources_args_file = module.Build / "args-sources";
-    const auto sources_output_file = module.Build / module.Artifact.get_filename("-sources", "jar");
+    const auto sources_output_file = module.Build / module.Artifact.get_filename("sources", "jar");
 
     std::unordered_set<const SourceSet *> source_sets;
     bool generate_sources;

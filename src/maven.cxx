@@ -323,7 +323,7 @@ std::string kompose::MavenCoordinate::get_filename(const std::string &extension)
 
 std::string kompose::MavenCoordinate::get_filename(const std::string &classifier, const std::string &extension) const
 {
-    return Artifact + '-' + Version + classifier + '.' + extension;
+    return Artifact + '-' + Version + '-' + classifier + '.' + extension;
 }
 
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_direct(
@@ -475,7 +475,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
 
         paths.insert(local_path);
 
-        if (auto res = coordinate.resolve_file(project, client, "-sources", "jar"); !res)
+        if (auto res = coordinate.resolve_file(project, client, "sources", "jar"); !res)
             return res;
     }
 
