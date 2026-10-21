@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <queue>
+#include <sstream>
 
 static toolkit::result<> package_jar(
     const std::filesystem::path &args_file,

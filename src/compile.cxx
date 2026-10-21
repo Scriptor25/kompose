@@ -3,6 +3,7 @@
 #include <kotlin.hxx>
 
 #include <iostream>
+#include <sstream>
 
 toolkit::result<> kompose::compile(
     const Project &project,

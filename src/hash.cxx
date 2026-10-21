@@ -3,6 +3,7 @@
 #include <array>
 #include <iomanip>
 #include <istream>
+#include <sstream>
 
 namespace
 {
