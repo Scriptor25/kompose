@@ -126,7 +126,7 @@ namespace kompose
 
     struct RepositoriesConfig
     {
-        std::unordered_set<std::string> Maven;
+        std::vector<std::string> Maven;
     };
 
     struct DependencyConfig
