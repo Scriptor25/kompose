@@ -55,7 +55,7 @@
             .Path = module_config.Path,
             .Source = source,
             .Build = build,
-            .Artifact = { 
+            .Artifact = {
                 .Group = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
                 .Artifact = module_config.Artifact.Name.value_or(name),
                 .Version = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
@@ -200,7 +200,7 @@
                                kompose::MavenResolveScope::ResolveRuntime,
                                source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
                 return res;
-            
+
             // TODO: use compiler config
             project_config.CompilerConfig;
             module_config.CompilerConfig;
@@ -644,7 +644,7 @@ static const args::manifest manifest
             continue;
         }
 
-        return toolkit::make_error("undefined task {}:{}", module_name.value_or({}), task);
+        return toolkit::make_error("undefined task {}:{}", module_name.value_or(std::string_view{}), task);
     }
 
     if (auto res = task_resolve(*project, resolve_modules, client); !res)

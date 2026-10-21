@@ -25,15 +25,15 @@ void data::serializer<json::node, kompose::Module>::to_data(
         { "path", std::filesystem::relative(value.Path, base) },
         { "source", std::filesystem::relative(value.Source, base) },
         { "build", std::filesystem::relative(value.Build, base) },
-        { 
-                "artifact",
-                json::object
-                {
-                    { "group", value.Artifact.Group },
-                    { "artifact", value.Artifact.Artifact },
-                    { "version", value.Artifact.Version },
-                },
+        {
+            "artifact",
+            json::object
+            {
+                { "group", value.Artifact.Group },
+                { "artifact", value.Artifact.Artifact },
+                { "version", value.Artifact.Version },
             },
+        },
         { "source_sets", value.SourceSets },
         { "data", value.Data },
     };

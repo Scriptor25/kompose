@@ -28,7 +28,7 @@ namespace kompose
         void Merge(const CommonCompilerConfigData &data);
 
         std::optional<std::string> KotlinHomePath;
-        
+
         std::optional<std::string> ApiVersion;
         std::optional<std::string> LanguageVersion;
 
@@ -51,7 +51,7 @@ namespace kompose
         std::optional<bool> NoJdk;
         std::optional<bool> NoStdlib;
         std::optional<bool> NoReflect;
-        
+
         std::optional<bool> GenerateJavaParameters;
     };
 
@@ -63,7 +63,7 @@ namespace kompose
         std::optional<std::string> Target;
         std::unordered_set<std::string> Libraries;
 
-        std::optional<std::filesystem::path> OutputPrefix; 
+        std::optional<std::filesystem::path> OutputPrefix;
         std::optional<std::filesystem::path> OutputPostfix;
 
         std::optional<std::string> SourceMapEmbedSources;
@@ -152,7 +152,7 @@ namespace kompose
 
         RepositoriesConfig Repositories;
         DependenciesConfig Dependencies;
-    
+
         KotlinCompilerConfig CompilerConfig;
     };
 
@@ -194,7 +194,7 @@ namespace kompose
         std::unordered_map<std::string, SourceSetConfig> SourceSets;
 
         std::variant<ApplicationModuleConfigData, LibraryModuleConfigData> Data;
-    
+
         KotlinCompilerConfig CompilerConfig;
     };
 } // namespace kompose

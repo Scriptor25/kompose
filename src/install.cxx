@@ -14,7 +14,7 @@ toolkit::result<> kompose::install(
 
     const auto src_binary_bundle_path = module.Build / binary_bundle_filename;
     const auto src_sources_bundle_path = module.Build / sources_bundle_filename;
-    
+
     const auto *home = getenv("HOME");
     const auto repository = std::filesystem::path(home) / ".m2" / "repository" / module.Artifact.locate();
 
@@ -32,26 +32,28 @@ toolkit::result<> kompose::install(
     const auto pom_path = repository / module.Artifact.get_filename("pom");
 
     if (std::error_code ec; std::filesystem::copy_file(
-                            src_binary_bundle_path,
-                            dst_binary_bundle_path,
-                            std::filesystem::copy_options::overwrite_existing,
-                            ec), ec)
-        return toolkit::make_error("failed to copy file from '{}' to '{}': {} ({})",
+                                src_binary_bundle_path,
+                                dst_binary_bundle_path,
+                                std::filesystem::copy_options::overwrite_existing,
+                                ec), ec)
+        return toolkit::make_error(
+            "failed to copy file from '{}' to '{}': {} ({})",
             src_binary_bundle_path.string(),
             dst_binary_bundle_path.string(),
             ec.message(),
             ec.value());
     if (std::error_code ec; std::filesystem::copy_file(
-                            src_sources_bundle_path,
-                            dst_sources_bundle_path,
-                            std::filesystem::copy_options::overwrite_existing,
-                            ec), ec)
-        return toolkit::make_error("failed to copy file from '{}' to '{}': {} ({})",
+                                src_sources_bundle_path,
+                                dst_sources_bundle_path,
+                                std::filesystem::copy_options::overwrite_existing,
+                                ec), ec)
+        return toolkit::make_error(
+            "failed to copy file from '{}' to '{}': {} ({})",
             src_sources_bundle_path.string(),
             dst_sources_bundle_path.string(),
             ec.message(),
             ec.value());
-    
+
     constexpr auto project_template = R"(<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -97,7 +99,7 @@ toolkit::result<> kompose::install(
                 dependency.Version,
                 "compile");
         }
-        
+
         for (const auto &dependency : source_set->Runtime.Modules)
         {
             dependencies += std::format(
@@ -124,7 +126,7 @@ toolkit::result<> kompose::install(
         module.Artifact.Artifact,
         module.Artifact.Version,
         dependencies);
-    
+
     {
         std::ofstream stream(pom_path, std::ios::binary);
         if (!stream)
