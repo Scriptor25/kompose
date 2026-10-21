@@ -235,9 +235,11 @@ toolkit::result<> kompose::package(
         for (const auto &path : jar_paths)
         {
             std::stringstream out, err;
-            if (auto res = Process(
-                { "jar", "-x", "-f", path, "-C", fat_directory }
-            )(out, err); !res)
+            if (auto res = Process
+            {
+                .Args = { "jar", "-x", "-f", path },
+                .WorkingDirectory = fat_directory,
+            }(out, err); !res)
             {
                 std::cerr << out.str();
                 std::cerr << err.str();

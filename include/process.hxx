@@ -4,6 +4,8 @@
 
 #include <toolkit/result.hxx>
 
+#include <filesystem>
+
 namespace kompose
 {
     struct Process
@@ -13,5 +15,6 @@ namespace kompose
         void Push(Hash &builder) const;
 
         std::vector<std::string> Args;
+        std::filesystem::path WorkingDirectory;
     };
 }

@@ -44,8 +44,19 @@ toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
 
+        if (!WorkingDirectory.empty())
+        {
+            const auto wd = WorkingDirectory.string();
+            if (chdir(wd.c_str()))
+            {
+                std::cerr << "chdir('" << wd << "') failed" << std::endl;
+                _exit(1);
+            }
+        }
+
         execvp(argv[0], argv);
 
+        std::cerr << "execvp(...) failed" << std::endl;
         _exit(127);
     }
 
