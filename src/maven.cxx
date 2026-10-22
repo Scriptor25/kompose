@@ -312,7 +312,8 @@ toolkit::result<const kompose::MavenDocument *> kompose::MavenDocumentPool::GetD
 
 bool kompose::MavenCoordinate::operator==(const MavenCoordinate &other) const
 {
-    return Group == other.Group && Artifact == other.Artifact && Version == other.Version && Classifier == other.Classifier;
+    return Group == other.Group && Artifact == other.Artifact && Version == other.Version && Classifier == other.
+           Classifier;
 }
 
 std::filesystem::path kompose::MavenCoordinate::locate() const
@@ -603,7 +604,8 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
                 return res;
 
             for (const auto &source : coordinates)
-                if (source.Group == coordinate.Group && source.Artifact == coordinate.Artifact && source.Version == coordinate.Version)
+                if (source.Group == coordinate.Group && source.Artifact == coordinate.Artifact && source.Version ==
+                    coordinate.Version)
                 {
                     coordinate.Classifier = source.Classifier;
                     break;

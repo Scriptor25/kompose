@@ -664,14 +664,22 @@ static const args::manifest manifest
     for (const auto *module : compile_modules)
         if (!resolve_modules.contains(module))
             resolve_compile_modules.insert(module);
-    if (auto res = task_resolve(*project, resolve_compile_modules, kompose::MavenResolveScope::ResolveCompile, client); !res)
+    if (auto res = task_resolve(
+        *project,
+        resolve_compile_modules,
+        kompose::MavenResolveScope::ResolveCompile,
+        client); !res)
         return res;
 
     std::unordered_set<const kompose::Module *> resolve_runtime_modules;
     for (const auto *module : launch_modules)
         if (!resolve_modules.contains(module))
             resolve_runtime_modules.insert(module);
-    if (auto res = task_resolve(*project, resolve_runtime_modules, kompose::MavenResolveScope::ResolveCompile, client); !res)
+    if (auto res = task_resolve(
+        *project,
+        resolve_runtime_modules,
+        kompose::MavenResolveScope::ResolveRuntime,
+        client); !res)
         return res;
 
     if (auto res = task_clean(clean_modules); !res)
