@@ -59,6 +59,7 @@ namespace kompose
         std::string Group;
         std::string Artifact;
         std::string Version;
+        std::optional<std::string> Classifier;
     };
 
     enum class MavenDependencyScope : uint8_t
@@ -179,8 +180,9 @@ struct std::hash<kompose::MavenCoordinate>
         const auto h1 = std::hash<std::string>()(value.Group);
         const auto h2 = std::hash<std::string>()(value.Artifact);
         const auto h3 = std::hash<std::string>()(value.Version);
+        const auto h4 = std::hash<std::optional<std::string>>()(value.Classifier);
 
-        return combine(h1, combine(h2, h3));
+        return combine(h1, combine(h2, combine(h3, h4)));
     }
 };
 

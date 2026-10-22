@@ -9,6 +9,7 @@ toolkit::result<> kompose::install(
     const Module &module,
     const http::client &client)
 {
+    // TODO: add classifier to filename classifier
     const auto binary_bundle_filename = module.Artifact.get_filename("jar");
     const auto sources_bundle_filename = module.Artifact.get_filename("sources", "jar");
 
@@ -77,6 +78,14 @@ toolkit::result<> kompose::install(
             <version>{}</version>
             <scope>{}</scope>
         </dependency>)";
+    constexpr auto dependency_template_classifier = R"(
+        <dependency>
+            <groupId>{}</groupId>
+            <artifactId>{}</artifactId>
+            <version>{}</version>
+            <scope>{}</scope>
+            <classifier>{}</classifier>
+        </dependency>)";
 
     std::string dependencies;
     for (const auto *source_set : module.IncludeInCompile())
@@ -92,12 +101,21 @@ toolkit::result<> kompose::install(
         }
         for (const auto &dependency : source_set->Compile.Maven)
         {
-            dependencies += std::format(
-                dependency_template,
-                dependency.Group,
-                dependency.Artifact,
-                dependency.Version,
-                "compile");
+            if (dependency.Classifier)
+                dependencies += std::format(
+                    dependency_template_classifier,
+                    dependency.Group,
+                    dependency.Artifact,
+                    dependency.Version,
+                    "compile",
+                    *dependency.Classifier);
+            else
+                dependencies += std::format(
+                    dependency_template,
+                    dependency.Group,
+                    dependency.Artifact,
+                    dependency.Version,
+                    "compile");
         }
 
         for (const auto &dependency : source_set->Runtime.Modules)
@@ -111,12 +129,21 @@ toolkit::result<> kompose::install(
         }
         for (const auto &dependency : source_set->Runtime.Maven)
         {
-            dependencies += std::format(
-                dependency_template,
-                dependency.Group,
-                dependency.Artifact,
-                dependency.Version,
-                "runtime");
+            if (dependency.Classifier)
+                dependencies += std::format(
+                    dependency_template_classifier,
+                    dependency.Group,
+                    dependency.Artifact,
+                    dependency.Version,
+                    "runtime",
+                    *dependency.Classifier);
+            else
+                dependencies += std::format(
+                    dependency_template,
+                    dependency.Group,
+                    dependency.Artifact,
+                    dependency.Version,
+                    "runtime");
         }
     }
 

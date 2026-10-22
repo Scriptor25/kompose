@@ -1,3 +1,4 @@
+#include "maven.hxx"
 #include <config.hxx>
 #include <kompose.hxx>
 #include <kotlin.hxx>
@@ -260,13 +261,31 @@ static void task_model(const kompose::Project &project)
 [[nodiscard]] static toolkit::result<> task_resolve(
     const kompose::Project &project,
     const std::unordered_set<const kompose::Module *> &modules,
+    kompose::MavenResolveScope scope,
     const http::client &client)
 {
     std::unordered_set<kompose::MavenCoordinate> coordinates;
 
+    const char *tag;
+    switch (scope)
+    {
+    case kompose::MavenResolveScope::ResolveCompile:
+        tag = "compile";
+        break;
+    case kompose::MavenResolveScope::ResolveRuntime:
+        tag = "runtime";
+        break;
+    default:
+        tag = nullptr;
+        break;
+    }
+
     for (const auto *module : modules)
     {
-        std::cerr << "> " << module->Name << ":resolve" << std::endl;
+        std::cerr << "> " << module->Name << ":resolve";
+        if (tag)
+            std::cerr << " [" << tag << "]";
+        std::cerr << std::endl;
 
         for (const auto source_sets = module->IncludeInCompile();
              const auto *source_set : source_sets)
@@ -279,16 +298,7 @@ static void task_model(const kompose::Project &project)
     if (coordinates.empty())
         return {};
 
-    std::unordered_set<std::filesystem::path> paths;
-    if (auto res = kompose::resolve(project, client, kompose::MavenResolveScope::ResolveAll, coordinates) >> paths; !
-        res)
-        return res;
-
-    std::cerr << "resolved:" << std::endl;
-    for (const auto &path : paths)
-        std::cerr << " - " << path << std::endl;
-
-    return {};
+    return kompose::resolve(project, client, scope, coordinates);
 }
 
 [[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Module *> &modules)
@@ -647,8 +657,23 @@ static const args::manifest manifest
         return toolkit::make_error("undefined task {}:{}", module_name.value_or(std::string_view{}), task);
     }
 
-    if (auto res = task_resolve(*project, resolve_modules, client); !res)
+    if (auto res = task_resolve(*project, resolve_modules, kompose::MavenResolveScope::ResolveAll, client); !res)
         return res;
+
+    std::unordered_set<const kompose::Module *> resolve_compile_modules;
+    for (const auto *module : compile_modules)
+        if (!resolve_modules.contains(module))
+            resolve_compile_modules.insert(module);
+    if (auto res = task_resolve(*project, resolve_compile_modules, kompose::MavenResolveScope::ResolveCompile, client); !res)
+        return res;
+
+    std::unordered_set<const kompose::Module *> resolve_runtime_modules;
+    for (const auto *module : launch_modules)
+        if (!resolve_modules.contains(module))
+            resolve_runtime_modules.insert(module);
+    if (auto res = task_resolve(*project, resolve_runtime_modules, kompose::MavenResolveScope::ResolveCompile, client); !res)
+        return res;
+
     if (auto res = task_clean(clean_modules); !res)
         return res;
     if (auto res = task_compile(*project, compile_modules, client); !res)
