@@ -430,7 +430,8 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
             Artifact,
             Version);
 
-    *resolved = file_resolved;
+    if (resolved)
+        *resolved = file_resolved;
     return local_path;
 }
 

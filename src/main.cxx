@@ -203,9 +203,9 @@
                 return res;
 
             // TODO: use compiler config
-            project_config.CompilerConfig;
-            module_config.CompilerConfig;
-            source_set_config.CompilerConfig;
+            (void) project_config.CompilerConfig;
+            (void) module_config.CompilerConfig;
+            (void) source_set_config.CompilerConfig;
         }
     }
 
