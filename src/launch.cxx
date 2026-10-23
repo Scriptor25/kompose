@@ -35,9 +35,13 @@ toolkit::result<> kompose::launch(
         for (const auto source_sets = next->IncludeInCompile();
              const auto *source_set : source_sets)
         {
+            for (const auto *dependency : source_set->Compile.Modules)
+                queue.push(dependency);
             for (const auto *dependency : source_set->Runtime.Modules)
                 queue.push(dependency);
 
+            for (const auto &dependency : source_set->Compile.Maven)
+                maven_dependencies.insert(dependency);
             for (const auto &dependency : source_set->Runtime.Maven)
                 maven_dependencies.insert(dependency);
         }

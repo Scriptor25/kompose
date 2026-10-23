@@ -126,9 +126,9 @@ toolkit::result<const kompose::MavenDocument *> kompose::MavenDocument::GetParen
 
         if (document_coordinate.Group != Parent->Group)
             continue;
-        if (document_coordinate.Artifact != Parent->Group)
+        if (document_coordinate.Artifact != Parent->Artifact)
             continue;
-        if (document_coordinate.Version != Parent->Group)
+        if (document_coordinate.Version != Parent->Version)
             continue;
 
         return &document;
@@ -145,26 +145,28 @@ toolkit::result<std::unordered_set<const kompose::MavenDocument *>> kompose::Mav
 
     for (const auto &dependency : Dependencies)
         if (dependency.Scope.value_or(MavenDependencyScope::Compile) & scopes)
+        {
+            MavenCoordinate dependency_coordinate;
+            if (auto res = pool.GetCoordinate(*this, dependency) >> dependency_coordinate; !res)
+                return res;
+
             for (const auto &document : pool.Documents)
             {
-                MavenCoordinate coordinate;
-                if (auto res = pool.GetCoordinate(*this, dependency) >> coordinate; !res)
-                    return res;
-
                 MavenCoordinate document_coordinate;
                 if (auto res = document.GetCoordinate(pool) >> document_coordinate; !res)
                     return res;
 
-                if (document_coordinate.Group != coordinate.Group)
+                if (document_coordinate.Group != dependency_coordinate.Group)
                     continue;
-                if (document_coordinate.Artifact != coordinate.Artifact)
+                if (document_coordinate.Artifact != dependency_coordinate.Artifact)
                     continue;
-                if (document_coordinate.Version != coordinate.Version)
+                if (document_coordinate.Version != dependency_coordinate.Version)
                     continue;
 
                 dependencies.insert(&document);
                 break;
             }
+        }
 
     return dependencies;
 }
@@ -571,6 +573,7 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
                 MavenCoordinate c;
                 if (auto res = pool.GetCoordinate(ref, *ref.Parent) >> c; !res)
                     return res;
+
                 queue.push(std::move(c));
             }
 
@@ -614,6 +617,7 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
             if (auto res = document->GetCoordinate(pool) >> coordinate; !res)
                 return res;
 
+            bool any = false;
             for (const auto &source : coordinates)
                 if (source.Group == coordinate.Group
                     && source.Artifact == coordinate.Artifact
@@ -621,7 +625,10 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
                 {
                     coordinate.Classifier = source.Classifier;
                     tree.insert(coordinate);
+                    any = true;
                 }
+            if (!any)
+                tree.insert(coordinate);
 
             std::unordered_set<const MavenDocument *> dependencies;
             if (auto res = document->GetDependencies(pool, scopes) >> dependencies; !res)

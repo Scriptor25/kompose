@@ -269,9 +269,11 @@ static void task_model(const kompose::Project &project)
     const char *tag;
     switch (scope)
     {
+    case kompose::MavenResolveScope::Compile:
     case kompose::MavenResolveScope::ResolveCompile:
         tag = "compile";
         break;
+    case kompose::MavenResolveScope::Runtime:
     case kompose::MavenResolveScope::ResolveRuntime:
         tag = "runtime";
         break;
@@ -290,8 +292,21 @@ static void task_model(const kompose::Project &project)
         for (const auto source_sets = module->IncludeInCompile();
              const auto *source_set : source_sets)
         {
-            coordinates.insert(source_set->Compile.Maven.begin(), source_set->Compile.Maven.end());
-            coordinates.insert(source_set->Runtime.Maven.begin(), source_set->Runtime.Maven.end());
+            switch (scope)
+            {
+            case kompose::MavenResolveScope::Compile:
+            case kompose::MavenResolveScope::ResolveCompile:
+                coordinates.insert(source_set->Compile.Maven.begin(), source_set->Compile.Maven.end());
+                break;
+            case kompose::MavenResolveScope::Runtime:
+            case kompose::MavenResolveScope::ResolveRuntime:
+                coordinates.insert(source_set->Runtime.Maven.begin(), source_set->Runtime.Maven.end());
+                break;
+            case kompose::MavenResolveScope::ResolveAll:
+                coordinates.insert(source_set->Compile.Maven.begin(), source_set->Compile.Maven.end());
+                coordinates.insert(source_set->Runtime.Maven.begin(), source_set->Runtime.Maven.end());
+                break;
+            }
         }
     }
 
@@ -657,7 +672,11 @@ static const args::manifest manifest
         return toolkit::make_error("undefined task {}:{}", module_name.value_or(std::string_view{}), task);
     }
 
-    if (auto res = task_resolve(*project, resolve_modules, kompose::MavenResolveScope::ResolveAll, client); !res)
+    if (auto res = task_resolve(
+        *project,
+        resolve_modules,
+        kompose::MavenResolveScope::ResolveAll,
+        client); !res)
         return res;
 
     std::unordered_set<const kompose::Module *> resolve_compile_modules;

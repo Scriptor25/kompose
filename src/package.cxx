@@ -212,25 +212,29 @@ toolkit::result<> kompose::package(
             const auto *source_set = queue.front();
             source_sets.insert(source_set);
 
+            for (const auto *mod : source_set->Compile.Modules)
+                for (const auto *set : mod->IncludeInCompile())
+                    queue.push(set);
             for (const auto *mod : source_set->Runtime.Modules)
                 for (const auto *set : mod->IncludeInCompile())
                     queue.push(set);
         }
 
-        std::unordered_set<std::filesystem::path> jar_paths;
+        std::unordered_set<MavenCoordinate> coordinates;
         for (const auto *source_set : source_sets)
         {
-            std::unordered_set<std::filesystem::path> paths;
-            if (auto res = resolve(
-                               project,
-                               client,
-                               MavenResolveScope::Runtime,
-                               source_set->Runtime.Maven
-                           ) >> paths; !res)
-                return res;
-
-            jar_paths.insert(paths.begin(), paths.end());
+            coordinates.insert(source_set->Compile.Maven.begin(), source_set->Compile.Maven.end());
+            coordinates.insert(source_set->Runtime.Maven.begin(), source_set->Runtime.Maven.end());
         }
+
+        std::unordered_set<std::filesystem::path> jar_paths;
+        if (auto res = resolve(
+                            project,
+                            client,
+                            MavenResolveScope::ResolveAll,
+                            coordinates
+                        ) >> jar_paths; !res)
+            return res;
 
         for (const auto &path : jar_paths)
         {
