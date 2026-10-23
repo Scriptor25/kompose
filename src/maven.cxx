@@ -312,8 +312,10 @@ toolkit::result<const kompose::MavenDocument *> kompose::MavenDocumentPool::GetD
 
 bool kompose::MavenCoordinate::operator==(const MavenCoordinate &other) const
 {
-    return Group == other.Group && Artifact == other.Artifact && Version == other.Version && Classifier == other.
-           Classifier;
+    return Group == other.Group
+            && Artifact == other.Artifact
+            && Version == other.Version
+            && Classifier == other.Classifier;
 }
 
 std::filesystem::path kompose::MavenCoordinate::locate() const
@@ -343,7 +345,8 @@ std::string kompose::MavenCoordinate::get_filename(const std::string &classifier
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_direct(
     const Project &project,
     const http::client &client,
-    const std::string &filename) const
+    const std::string &filename,
+    bool *resolved) const
 {
     auto path = locate() / filename;
 
@@ -359,7 +362,7 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
             ec.message(),
             ec.value());
 
-    auto found = false;
+    auto file_resolved = false;
     for (const auto &repository : project.Repositories.Maven)
     {
         if (repository == "local")
@@ -383,7 +386,7 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
                     ec.message(),
                     ec.value());
 
-            found = true;
+            file_resolved = true;
             break;
         }
 
@@ -416,37 +419,40 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
                 response.message,
                 response.code);
 
-        found = true;
+        file_resolved = true;
         break;
     }
 
-    if (!found)
+    if (!resolved && !file_resolved)
         return toolkit::make_error(
             "failed to resolve maven coordinate '{}:{}:{}'",
             Group,
             Artifact,
             Version);
 
+    *resolved = file_resolved;
     return local_path;
 }
 
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
     const Project &project,
     const http::client &client,
-    const std::string &extension) const
+    const std::string &extension,
+    bool *resolved) const
 {
     auto filename = Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
 
-    return resolve_file_direct(project, client, filename);
+    return resolve_file_direct(project, client, filename, resolved);
 }
 
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
     const Project &project,
     const http::client &client,
     const std::string &classifier,
-    const std::string &extension) const
+    const std::string &extension,
+    bool *resolved) const
 {
-    return resolve_file_direct(project, client, get_filename(classifier, extension));
+    return resolve_file_direct(project, client, get_filename(classifier, extension), resolved);
 }
 
 toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
@@ -491,8 +497,12 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
 
         paths.insert(local_path);
 
-        if (auto res = coordinate.resolve_file(project, client, "sources", "jar"); !res)
+        bool resolved;
+        if (auto res = coordinate.resolve_file(project, client, "sources", "jar", &resolved) >> local_path; !res)
             return res;
+
+        (void) resolved;
+        (void) local_path;
     }
 
     return paths;
@@ -604,14 +614,13 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
                 return res;
 
             for (const auto &source : coordinates)
-                if (source.Group == coordinate.Group && source.Artifact == coordinate.Artifact && source.Version ==
-                    coordinate.Version)
+                if (source.Group == coordinate.Group
+                    && source.Artifact == coordinate.Artifact
+                    && source.Version == coordinate.Version)
                 {
                     coordinate.Classifier = source.Classifier;
-                    break;
+                    tree.insert(coordinate);
                 }
-
-            tree.insert(std::move(coordinate));
 
             std::unordered_set<const MavenDocument *> dependencies;
             if (auto res = document->GetDependencies(pool, scopes) >> dependencies; !res)

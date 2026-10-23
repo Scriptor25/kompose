@@ -75,7 +75,7 @@
         {
         case kompose::ModuleType::Application:
         {
-            const auto &module_data = get<kompose::ApplicationModuleConfigData>(module_config.Data);
+            const auto &module_data = std::get<kompose::ApplicationModuleConfigData>(module_config.Data);
 
             kompose::ApplicationModuleData data
             {
@@ -95,7 +95,7 @@
 
         case kompose::ModuleType::Library:
         {
-            const auto &module_data = get<kompose::LibraryModuleConfigData>(module_config.Data);
+            const auto &module_data = std::get<kompose::LibraryModuleConfigData>(module_config.Data);
 
             kompose::LibraryModuleData data
             {

@@ -1,7 +1,7 @@
-#include <filesystem>
 #include <kompose.hxx>
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 
 toolkit::result<> kompose::install(
@@ -18,6 +18,26 @@ toolkit::result<> kompose::install(
 
     const auto *home = getenv("HOME");
     const auto repository = std::filesystem::path(home) / ".m2" / "repository" / module.Artifact.locate();
+
+    bool generate_sources;
+    switch (module.Type)
+    {
+    case ModuleType::Application:
+    {
+        const auto &data = std::get<ApplicationModuleData>(module.Data);
+
+        generate_sources = false;
+        break;
+    }
+
+    case ModuleType::Library:
+    {
+        const auto &data = std::get<LibraryModuleData>(module.Data);
+
+        generate_sources = data.IncludeSources;
+        break;
+    }
+    }
 
     if (!std::filesystem::exists(repository))
         if (std::error_code ec; std::filesystem::create_directories(repository, ec), ec)
@@ -43,17 +63,19 @@ toolkit::result<> kompose::install(
             dst_binary_bundle_path.string(),
             ec.message(),
             ec.value());
-    if (std::error_code ec; std::filesystem::copy_file(
-                                src_sources_bundle_path,
-                                dst_sources_bundle_path,
-                                std::filesystem::copy_options::overwrite_existing,
-                                ec), ec)
-        return toolkit::make_error(
-            "failed to copy file from '{}' to '{}': {} ({})",
-            src_sources_bundle_path.string(),
-            dst_sources_bundle_path.string(),
-            ec.message(),
-            ec.value());
+
+    if (generate_sources)
+        if (std::error_code ec; std::filesystem::copy_file(
+                                    src_sources_bundle_path,
+                                    dst_sources_bundle_path,
+                                    std::filesystem::copy_options::overwrite_existing,
+                                    ec), ec)
+            return toolkit::make_error(
+                "failed to copy file from '{}' to '{}': {} ({})",
+                src_sources_bundle_path.string(),
+                dst_sources_bundle_path.string(),
+                ec.message(),
+                ec.value());
 
     constexpr auto project_template = R"(<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"

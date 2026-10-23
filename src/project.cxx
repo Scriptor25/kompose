@@ -16,13 +16,13 @@ std::unordered_set<const kompose::SourceSet *> kompose::Module::IncludeInCompile
     {
     case ModuleType::Application:
     {
-        const auto &data = get<ApplicationModuleData>(Data);
+        const auto &data = std::get<ApplicationModuleData>(Data);
         return data.Include;
     }
 
     case ModuleType::Library:
     {
-        const auto &data = get<LibraryModuleData>(Data);
+        const auto &data = std::get<LibraryModuleData>(Data);
         return data.Include;
     }
 

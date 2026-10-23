@@ -177,7 +177,7 @@ toolkit::result<> kompose::package(
 
     case ModuleType::Library:
     {
-        const auto &data = get<LibraryModuleData>(module.Data);
+        const auto &data = std::get<LibraryModuleData>(module.Data);
 
         source_sets = data.Include;
         generate_sources = data.IncludeSources;

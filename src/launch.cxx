@@ -19,7 +19,7 @@ toolkit::result<> kompose::launch(
         return toolkit::make_error("node type does not support task :launch");
     }
 
-    const auto &data = get<ApplicationModuleData>(module.Data);
+    const auto &data = std::get<ApplicationModuleData>(module.Data);
     const auto &main_class = data.Main;
 
     std::unordered_set<const Module *> module_dependencies;

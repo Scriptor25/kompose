@@ -41,16 +41,19 @@ namespace kompose
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file_direct(
             const Project &project,
             const http::client &client,
-            const std::string &filename) const;
+            const std::string &filename,
+            bool *resolved = nullptr) const;
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
             const Project &project,
             const http::client &client,
-            const std::string &extension) const;
+            const std::string &extension,
+            bool *resolved = nullptr) const;
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
             const Project &project,
             const http::client &client,
             const std::string &classifier,
-            const std::string &extension) const;
+            const std::string &extension,
+            bool *resolved = nullptr) const;
 
         [[nodiscard]] toolkit::result<MavenDocument> resolve_pom(
             const Project &project,
