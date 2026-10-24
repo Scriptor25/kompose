@@ -210,6 +210,11 @@
             if (source_set.Compiler.Platform == kompose::KotlinCompilerPlatform::None)
                 source_set.Compiler.Platform = kompose::KotlinCompilerPlatform::Jvm;
 
+            auto common = source_set_config.CompilerConfig.Common;
+            common.Merge(module_config.CompilerConfig.Common);
+            common.Merge(project_config.CompilerConfig.Common);
+            source_set.Compiler.Common = std::move(common);
+
             switch (source_set.Compiler.Platform)
             {
             case kompose::KotlinCompilerPlatform::Jvm:
