@@ -22,6 +22,14 @@ namespace kompose
         std::unordered_set<MavenCoordinate> Tree;
     };
 
+    struct KotlinCompiler
+    {
+        KotlinCompilerPlatform Platform;
+        CommonCompilerConfigData Common;
+
+        std::variant<JvmCompilerConfigData, JsCompilerConfigData, NativeCompilerConfigData> Data;
+    };
+
     struct SourceSet
     {
         const Module *Parent;
@@ -32,6 +40,8 @@ namespace kompose
 
         Dependency Compile;
         Dependency Runtime;
+
+        KotlinCompiler Compiler;
     };
 
     struct ApplicationModuleData

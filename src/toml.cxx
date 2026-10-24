@@ -84,7 +84,7 @@ void kompose::NativeCompilerConfigData::Merge(const NativeCompilerConfigData &da
 
 void kompose::KotlinCompilerConfig::Merge(const KotlinCompilerConfig &config)
 {
-    if (Platform == CompilerPlatform::None)
+    if (Platform == KotlinCompilerPlatform::None)
         Platform = config.Platform;
 
     Common.Merge(config.Common);
@@ -287,15 +287,15 @@ bool data::serializer<toml::node, kompose::KotlinCompilerConfig>::from_data(
     return ok;
 }
 
-bool data::serializer<toml::node, kompose::CompilerPlatform>::from_data(
+bool data::serializer<toml::node, kompose::KotlinCompilerPlatform>::from_data(
     const toml::node &node,
-    kompose::CompilerPlatform &value)
+    kompose::KotlinCompilerPlatform &value)
 {
-    static const std::unordered_map<std::string, kompose::CompilerPlatform> map
+    static const std::unordered_map<std::string, kompose::KotlinCompilerPlatform> map
     {
-        { "jvm", kompose::CompilerPlatform::Jvm },
-        { "js", kompose::CompilerPlatform::Js },
-        { "native", kompose::CompilerPlatform::Native },
+        { "jvm", kompose::KotlinCompilerPlatform::Jvm },
+        { "js", kompose::KotlinCompilerPlatform::Js },
+        { "native", kompose::KotlinCompilerPlatform::Native },
     };
 
     std::string key;

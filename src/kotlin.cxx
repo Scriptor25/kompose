@@ -478,5 +478,8 @@ kompose::Process kompose::KotlinCommand::Build() const
     for (auto &input : Input)
         args.push_back(input);
 
-    return { std::move(args) };
+    for (auto &arg : ExtraArguments)
+        args.push_back(arg);
+
+    return { .Args = std::move(args) };
 }

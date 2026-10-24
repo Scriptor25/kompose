@@ -202,10 +202,43 @@
                                source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
                 return res;
 
-            // TODO: use compiler config
-            (void) project_config.CompilerConfig;
-            (void) module_config.CompilerConfig;
-            (void) source_set_config.CompilerConfig;
+            source_set.Compiler.Platform = source_set_config.CompilerConfig.Platform;
+            if (source_set.Compiler.Platform == kompose::KotlinCompilerPlatform::None)
+                source_set.Compiler.Platform = module_config.CompilerConfig.Platform;
+            if (source_set.Compiler.Platform == kompose::KotlinCompilerPlatform::None)
+                source_set.Compiler.Platform = project_config.CompilerConfig.Platform;
+            if (source_set.Compiler.Platform == kompose::KotlinCompilerPlatform::None)
+                source_set.Compiler.Platform = kompose::KotlinCompilerPlatform::Jvm;
+
+            switch (source_set.Compiler.Platform)
+            {
+            case kompose::KotlinCompilerPlatform::Jvm:
+            {
+                auto data = source_set_config.CompilerConfig.Jvm;
+                data.Merge(module_config.CompilerConfig.Jvm);
+                data.Merge(project_config.CompilerConfig.Jvm);
+                source_set.Compiler.Data = std::move(data);
+                break;
+            }
+            case kompose::KotlinCompilerPlatform::Js:
+            {
+                auto data = source_set_config.CompilerConfig.Js;
+                data.Merge(module_config.CompilerConfig.Js);
+                data.Merge(project_config.CompilerConfig.Js);
+                source_set.Compiler.Data = std::move(data);
+                break;
+            }
+            case kompose::KotlinCompilerPlatform::Native:
+            {
+                auto data = source_set_config.CompilerConfig.Native;
+                data.Merge(module_config.CompilerConfig.Native);
+                data.Merge(project_config.CompilerConfig.Native);
+                source_set.Compiler.Data = std::move(data);
+                break;
+            }
+            default:
+                break;
+            }
         }
     }
 

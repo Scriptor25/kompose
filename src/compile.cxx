@@ -97,25 +97,65 @@ toolkit::result<> kompose::compile(
         class_path_string += *it;
     }
 
-    // TODO: make language version, api version and jvm target version controllable
     KotlinCommand command
     {
         .Input = std::move(sources),
-        .ApiVersion = "2.4",
-        .LanguageVersion = "2.4",
-        .JvmClassPath = std::move(class_path_string),
-        .JvmDestination = destination_path,
-        .JvmModuleName = module.Name,
     };
 
-    switch (module.Type)
-    {
-    case ModuleType::Application:
-        command.JvmIncludeRuntime = true;
-        break;
+    command.ApiVersion = source_set.Compiler.Common.ApiVersion;
+    command.LanguageVersion = source_set.Compiler.Common.LanguageVersion;
+    command.KotlinHome = source_set.Compiler.Common.KotlinHomePath;
+    command.OptIn = source_set.Compiler.Common.OptIn;
+    command.PluginOptions = source_set.Compiler.Common.PluginOptions;
+    command.Progressive = source_set.Compiler.Common.Progressive.value_or(false);
+    command.ExtraArguments = source_set.Compiler.Common.ExtraArguments;
 
-    case ModuleType::Library:
+    switch (source_set.Compiler.Platform)
+    {
+    case KotlinCompilerPlatform::Jvm:
+    {
+        const auto &data = std::get<JvmCompilerConfigData>(source_set.Compiler.Data);
+
+        command.JvmModuleName = module.Name;
+        command.JvmDestination = destination_path;
+        command.JvmClassPath = class_path_string;
+
+        command.JvmTarget = data.Target;
+        command.JvmJdkHomePath = data.JdkHomePath;
+
+        command.JvmJavaParameters = data.GenerateJavaParameters.value_or(false);
+        command.JvmNoJdk = data.NoJdk.value_or(false);
+        command.JvmNoReflect = data.NoReflect.value_or(false);
+        command.JvmNoStdlib = data.NoStdlib.value_or(false);
+
+        if (data.DefaultMode)
+        {
+            if (data.DefaultMode == "disable")
+                command.JvmDefaultMode = KotlinJvmDefaultMode::Disable;
+            if (data.DefaultMode == "enable")
+                command.JvmDefaultMode = KotlinJvmDefaultMode::Enable;
+            if (data.DefaultMode == "no-compatibility")
+                command.JvmDefaultMode = KotlinJvmDefaultMode::NoCompatibility;
+        }
+
+        switch (module.Type)
+        {
+        case ModuleType::Application:
+            command.JvmIncludeRuntime = true;
+            break;
+
+        case ModuleType::Library:
+            break;
+        }
+
         break;
+    }
+    case KotlinCompilerPlatform::Js:
+        return toolkit::make_error("TODO");
+    case KotlinCompilerPlatform::Native:
+        return toolkit::make_error("TODO");
+    default:
+        return toolkit::make_error("TODO");
     }
 
     auto process = command.Build();

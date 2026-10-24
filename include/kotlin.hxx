@@ -107,6 +107,8 @@ namespace kompose
 
         std::unordered_set<std::string> Input;
 
+        std::vector<std::string> ExtraArguments;
+
 #pragma region Common
 
         /** -api-version <version> */

@@ -15,7 +15,7 @@
 
 namespace kompose
 {
-    enum class CompilerPlatform
+    enum class KotlinCompilerPlatform
     {
         None,
         Jvm,
@@ -98,7 +98,7 @@ namespace kompose
     {
         void Merge(const KotlinCompilerConfig &config);
 
-        CompilerPlatform Platform;
+        KotlinCompilerPlatform Platform;
 
         CommonCompilerConfigData Common;
         JvmCompilerConfigData Jvm;
@@ -248,11 +248,11 @@ struct data::serializer<toml::node, kompose::KotlinCompilerConfig>
 };
 
 template<>
-struct data::serializer<toml::node, kompose::CompilerPlatform>
+struct data::serializer<toml::node, kompose::KotlinCompilerPlatform>
 {
     static bool from_data(
         const toml::node &node,
-        kompose::CompilerPlatform &value);
+        kompose::KotlinCompilerPlatform &value);
 };
 
 template<>
