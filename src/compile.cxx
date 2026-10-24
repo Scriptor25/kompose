@@ -121,7 +121,7 @@ toolkit::result<> kompose::compile(
         command.JvmClassPath = class_path_string;
 
         command.JvmTarget = data.Target;
-        command.JvmJdkHomePath = data.JdkHomePath;
+        command.JvmJdkHome = data.JdkHomePath;
 
         command.JvmJavaParameters = data.GenerateJavaParameters.value_or(false);
         command.JvmNoJdk = data.NoJdk.value_or(false);

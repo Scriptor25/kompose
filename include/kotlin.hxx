@@ -175,7 +175,7 @@ namespace kompose
         /** -include-runtime */
         bool JvmIncludeRuntime{};
         /** -jdk-home-path <path> */
-        std::optional<std::string> JvmJdkHomePath;
+        std::optional<std::string> JvmJdkHome;
         /** -Xjdk-release <version> */
         std::optional<std::string> JvmJdkRelease;
         /** -jvm-default-mode (enable|no-compatibility|disable) */

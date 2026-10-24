@@ -152,10 +152,10 @@ kompose::Process kompose::KotlinCommand::Build() const
     }
     if (JvmIncludeRuntime)
         args.emplace_back("-include-runtime");
-    if (JvmJdkHomePath)
+    if (JvmJdkHome)
     {
-        args.emplace_back("-jdk-home-path");
-        args.push_back(*JvmJdkHomePath);
+        args.emplace_back("-jdk-home");
+        args.push_back(*JvmJdkHome);
     }
     if (JvmJdkRelease)
     {
