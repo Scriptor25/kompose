@@ -94,7 +94,7 @@ toolkit::result<> kompose::compile(
     };
 
     command.ApiVersion = source_set.Compiler.Common.ApiVersion;
-    command.KotlinHome = source_set.Compiler.Common.KotlinHomePath;
+    command.KotlinHome = source_set.Compiler.Common.KotlinHome;
     command.LanguageVersion = source_set.Compiler.Common.LanguageVersion;
     command.OptIn = source_set.Compiler.Common.OptIn;
     command.PluginOptions = source_set.Compiler.Common.PluginOptions;

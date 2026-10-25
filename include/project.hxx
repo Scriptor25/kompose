@@ -204,3 +204,67 @@ struct data::serializer<json::node, kompose::RepositoriesConfig>
         json::node &node,
         const kompose::RepositoriesConfig &value);
 };
+
+template<>
+struct data::serializer<json::node, kompose::KotlinCompiler>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::KotlinCompiler &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::CommonCompilerConfigData>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::CommonCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::JvmCompilerConfigData>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::JvmCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::JsCompilerConfigData>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::JsCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::NativeCompilerConfigData>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::NativeCompilerConfigData &value);
+};
+
+template<>
+struct data::serializer<json::node, const char *>
+{
+    static void to_data(
+        json::node &node,
+        const char *value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::KotlinJvmDefault>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::KotlinJvmDefault &value);
+};
+
+template<>
+struct data::serializer<json::node, kompose::KotlinJvmNullabilityAnnotationReportLevel>
+{
+    static void to_data(
+        json::node &node,
+        const kompose::KotlinJvmNullabilityAnnotationReportLevel &value);
+};

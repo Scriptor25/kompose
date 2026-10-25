@@ -32,7 +32,6 @@ void data::serializer<json::node, kompose::Module>::to_data(
                 { "group", value.Artifact.Group },
                 { "artifact", value.Artifact.Artifact },
                 { "version", value.Artifact.Version },
-                { "classifier", value.Artifact.Classifier },
             },
         },
         { "source_sets", value.SourceSets },
@@ -79,6 +78,7 @@ void data::serializer<json::node, kompose::SourceSet>::to_data(
                 { "runtime", value.Runtime },
             },
         },
+        { "compiler", value.Compiler },
     };
 }
 
@@ -88,7 +88,7 @@ void data::serializer<json::node, kompose::ApplicationModuleData>::to_data(
 {
     node = json::object
     {
-        { "type", json::string("application") },
+        { "type", "application" },
         { "main", value.Main },
         { "include", value.Include },
     };
@@ -100,7 +100,7 @@ void data::serializer<json::node, kompose::LibraryModuleData>::to_data(
 {
     node = json::object
     {
-        { "type", json::string("library") },
+        { "type", "library" },
         { "include_sources", value.IncludeSources },
         { "include", value.Include },
     };
@@ -154,4 +154,132 @@ void data::serializer<json::node, kompose::RepositoriesConfig>::to_data(
     {
         { "maven", value.Maven },
     };
+}
+
+void data::serializer<json::node, kompose::KotlinCompiler>::to_data(
+    json::node &node,
+    const kompose::KotlinCompiler &value)
+{
+    node = json::object
+    {
+        { "common", value.Common },
+        { "data", value.Data },
+    };
+}
+
+void data::serializer<json::node, kompose::CommonCompilerConfigData>::to_data(
+    json::node &node,
+    const kompose::CommonCompilerConfigData &value)
+{
+    node = json::object
+    {
+        { "kotlin_home", value.KotlinHome },
+        { "api_version", value.ApiVersion },
+        { "language_version", value.LanguageVersion },
+        { "opt_in", value.OptIn },
+        { "progressive", value.Progressive },
+        { "plugin_options", value.PluginOptions },
+        { "extra", value.Extra },
+    };
+}
+
+void data::serializer<json::node, kompose::JvmCompilerConfigData>::to_data(
+    json::node &node,
+    const kompose::JvmCompilerConfigData &value)
+{
+    node = json::object
+    {
+        { "type", "jvm" },
+        { "jdk_home", value.JdkHome },
+        { "default", value.Default },
+        { "target", value.Target },
+        { "java_parameters", value.JavaParameters },
+        { "no_jdk", value.NoJdk },
+        { "no_reflect", value.NoReflect },
+        { "no_stdlib", value.NoStdlib },
+        { "script_templates", value.ScriptTemplates },
+        { "add_modules", value.AddModules },
+        { "expose_boxed", value.ExposeBoxed },
+        { "nullability_annotations", value.NullabilityAnnotations },
+        { "enable_preview", value.EnablePreview },
+        { "extra", value.Extra },
+    };
+}
+
+void data::serializer<json::node, kompose::JsCompilerConfigData>::to_data(
+    json::node &node,
+    const kompose::JsCompilerConfigData &value)
+{
+    node = json::object
+    {
+        { "type", "js" },
+        { "module_kind", value.ModuleKind },
+        { "target", value.Target },
+        { "libraries", value.Libraries },
+        { "output_prefix", value.OutputPrefix },
+        { "output_postfix", value.OutputPostfix },
+        { "source_map_embed_sources", value.SourceMapEmbedSources },
+        { "source_map_names_policy", value.SourceMapNamesPolicy },
+        { "source_map_prefix", value.SourceMapPrefix },
+        { "source_map_base_dirs", value.SourceMapBaseDirs },
+        { "no_stdlib", value.NoStdlib },
+        { "generate_meta_info", value.GenerateMetaInfo },
+        { "generate_source_map", value.GenerateSourceMap },
+        { "extra", value.Extra },
+    };
+}
+
+void data::serializer<json::node, kompose::NativeCompilerConfigData>::to_data(
+    json::node &node,
+    const kompose::NativeCompilerConfigData &value)
+{
+    node = json::object
+    {
+        { "type", "native" },
+        { "target", value.Target },
+        { "enable_debug", value.EnableDebug },
+        { "enable_assertions", value.EnableAssertions },
+        { "enable_optimizations", value.EnableOptimizations },
+        { "no_stdlib", value.NoStdlib },
+        { "no_default_libs", value.NoDefaultLibs },
+        { "generate_test_runner", value.GenerateTestRunner },
+        { "generate_no_exit_test_runner", value.GenerateNoExitTestRunner },
+        { "extra", value.Extra },
+    };
+}
+
+void data::serializer<json::node, const char *>::to_data(
+    json::node &node,
+    const char *value)
+{
+    node = json::string(value);
+}
+
+void data::serializer<json::node, kompose::KotlinJvmDefault>::to_data(
+    json::node &node,
+    const kompose::KotlinJvmDefault &value)
+{
+    static const std::unordered_map<kompose::KotlinJvmDefault, const char *> map
+    {
+        { kompose::KotlinJvmDefault::None, "none" },
+        { kompose::KotlinJvmDefault::Enable, "enable" },
+        { kompose::KotlinJvmDefault::NoCompatibility, "no-compatibility" },
+        { kompose::KotlinJvmDefault::Disable, "disable" },
+    };
+
+    node = map.at(value);
+}
+
+void data::serializer<json::node, kompose::KotlinJvmNullabilityAnnotationReportLevel>::to_data(
+    json::node &node,
+    const kompose::KotlinJvmNullabilityAnnotationReportLevel &value)
+{
+    static const std::unordered_map<kompose::KotlinJvmNullabilityAnnotationReportLevel, const char *> map
+    {
+        { kompose::KotlinJvmNullabilityAnnotationReportLevel::Ignore, "ignore" },
+        { kompose::KotlinJvmNullabilityAnnotationReportLevel::Warn, "warn" },
+        { kompose::KotlinJvmNullabilityAnnotationReportLevel::Strict, "strict" },
+    };
+
+    node = map.at(value);
 }

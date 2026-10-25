@@ -5,8 +5,8 @@
 
 void kompose::CommonCompilerConfigData::Merge(const CommonCompilerConfigData &data)
 {
-    if (!KotlinHomePath)
-        KotlinHomePath = data.KotlinHomePath;
+    if (!KotlinHome)
+        KotlinHome = data.KotlinHome;
     if (!ApiVersion)
         ApiVersion = data.ApiVersion;
     if (!LanguageVersion)
@@ -330,7 +330,7 @@ bool data::serializer<toml::node, kompose::CommonCompilerConfigData>::from_data(
 
     auto ok = true;
 
-    ok &= node["kotlinHomePath"] >> value.KotlinHomePath;
+    ok &= node["kotlinHome"] >> value.KotlinHome;
     ok &= node["apiVersion"] >> value.ApiVersion;
     ok &= node["languageVersion"] >> value.LanguageVersion;
 
