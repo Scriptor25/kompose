@@ -140,10 +140,18 @@ kompose::Process kompose::KotlinCommand::Build() const
 
 #pragma region JVM
 
-    if (JvmClassPath)
+    if (!JvmClassPath.empty())
     {
         args.emplace_back("-classpath");
-        args.push_back(*JvmClassPath);
+
+        std::string path;
+        for (auto it = JvmClassPath.begin(); it != JvmClassPath.end(); ++it)
+        {
+            if (it != JvmClassPath.begin())
+                path += ':';
+            path += *it;
+        }
+        args.push_back(std::move(path));
     }
     if (JvmDestination)
     {
@@ -162,20 +170,20 @@ kompose::Process kompose::KotlinCommand::Build() const
         args.emplace_back("-jdk-release");
         args.push_back(*JvmJdkRelease);
     }
-    switch (JvmDefaultMode)
+    switch (JvmDefault)
     {
-    case KotlinJvmDefaultMode::None:
+    case KotlinJvmDefault::None:
         break;
-    case KotlinJvmDefaultMode::Enable:
-        args.emplace_back("-jvm-default-mode");
+    case KotlinJvmDefault::Enable:
+        args.emplace_back("-jvm-default");
         args.emplace_back("enable");
         break;
-    case KotlinJvmDefaultMode::NoCompatibility:
-        args.emplace_back("-jvm-default-mode");
+    case KotlinJvmDefault::NoCompatibility:
+        args.emplace_back("-jvm-default");
         args.emplace_back("no-compatibility");
         break;
-    case KotlinJvmDefaultMode::Disable:
-        args.emplace_back("-jvm-default-mode");
+    case KotlinJvmDefault::Disable:
+        args.emplace_back("-jvm-default");
         args.emplace_back("disable");
         break;
     }
@@ -199,20 +207,41 @@ kompose::Process kompose::KotlinCommand::Build() const
         args.emplace_back("-no-stdlib");
     if (!JvmScriptTemplates.empty())
     {
+        args.emplace_back("-script-templates");
+
         std::string templates;
         for (auto it = JvmScriptTemplates.begin(); it != JvmScriptTemplates.end(); ++it)
         {
             if (it != JvmScriptTemplates.begin())
-                templates += ':'; // TODO
+                templates += ',';
             templates += *it;
         }
-        args.emplace_back("-script-templates");
-        args.push_back(templates);
+        args.push_back(std::move(templates));
+    }
+    if (!JvmAddModules.empty())
+    {
+        args.emplace_back("-Xadd-modules");
+
+        std::string modules;
+        for (auto it = JvmAddModules.begin(); it != JvmAddModules.end(); ++it)
+        {
+            if (it != JvmAddModules.begin())
+                modules += ',';
+            modules += *it;
+        }
+        args.push_back(std::move(modules));
+    }
+    if (JvmDumpDirectory)
+    {
+        args.emplace_back("-Xdump-directory");
+        args.push_back(*JvmDumpDirectory);
     }
     if (JvmExposeBoxed)
         args.emplace_back("-Xjvm-expose-boxed");
     for (auto &[fst, snd] : JvmNullabilityAnnotations)
     {
+        args.emplace_back("-Xnullability-annotations");
+
         std::string level;
         switch (snd)
         {
@@ -226,9 +255,10 @@ kompose::Process kompose::KotlinCommand::Build() const
             level = "strict";
             break;
         }
-        args.emplace_back("-Xnullability-annotations");
         args.push_back('@' + fst + ':' + level);
     }
+    if (JvmEnablePreview)
+        args.emplace_back("-Xjvm-enable-preview");
 
 #pragma endregion
 
@@ -478,8 +508,13 @@ kompose::Process kompose::KotlinCommand::Build() const
     for (auto &input : Input)
         args.push_back(input);
 
-    for (auto &arg : ExtraArguments)
+    for (auto &arg : Extra)
         args.push_back(arg);
 
     return { .Args = std::move(args) };
+}
+
+void kompose::KotlinCommand::InsertExtra(std::span<const std::string> extra)
+{
+    Extra.insert(Extra.end(), extra.begin(), extra.end());
 }

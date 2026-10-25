@@ -1,12 +1,15 @@
-#include <iostream>
-#include <ostream>
+#include <process.hxx>
+
 #include <unistd.h>
 #include <sys/poll.h>
 #include <sys/wait.h>
 
-#include <process.hxx>
+#include <iostream>
+#include <ostream>
 
-toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &err) const
+toolkit::result<> kompose::Process::operator()(
+    std::ostream &out,
+    std::ostream &err) const
 {
     char *argv[Args.size() + 1];
     for (size_t i = 0; i < Args.size(); ++i)
@@ -38,8 +41,16 @@ toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &
         close(stdout_pipe[0]);
         close(stderr_pipe[0]);
 
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-        dup2(stderr_pipe[1], STDERR_FILENO);
+        if (dup2(stdout_pipe[1], STDOUT_FILENO) < 0)
+        {
+            std::cerr << "failed to attach stdout" << std::endl;
+            _exit(127);
+        }
+        if (dup2(stderr_pipe[1], STDERR_FILENO) < 0)
+        {
+            std::cerr << "failed to attach stderr" << std::endl;
+            _exit(127);
+        }
 
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
@@ -49,58 +60,63 @@ toolkit::result<> kompose::Process::operator()(std::ostream &out, std::ostream &
             const auto wd = WorkingDirectory.string();
             if (chdir(wd.c_str()))
             {
-                std::cerr << "chdir('" << wd << "') failed" << std::endl;
-                _exit(1);
+                std::cerr << "failed to change to working directory" << std::endl;
+                _exit(127);
             }
         }
 
         execvp(argv[0], argv);
-
-        std::cerr << "execvp(...) failed" << std::endl;
+        std::cerr << "failed to execute with args" << std::endl;
         _exit(127);
     }
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
 
-    pollfd fds[]
+    std::array fds
     {
+        pollfd
         {
             .fd = stdout_pipe[0],
             .events = POLLIN,
         },
+        pollfd
         {
             .fd = stderr_pipe[0],
             .events = POLLIN,
         },
     };
 
-    char buffer[4096];
+    std::array<char, 4096> buffer{};
 
-    auto open_pipes = 2;
+    auto open_pipes = fds.size();
     while (open_pipes > 0)
     {
-        if (poll(fds, 2, -1) < 0)
-            break;
-
-        for (auto i = 0; i < 2; ++i)
+        if (poll(fds.data(), fds.size(), -1) < 0)
         {
-            if (fds[i].fd < 0)
+            if (errno == EINTR)
+                continue;
+            break;
+        }
+
+        for (auto &p : fds)
+        {
+            if (p.fd < 0)
                 continue;
 
-            if (fds[i].revents & (POLLIN | POLLHUP))
+            if (p.revents & (POLLIN | POLLHUP))
             {
-                if (const auto n = read(fds[i].fd, buffer, sizeof(buffer)); n > 0)
+                if (const auto n = read(p.fd, buffer.data(), buffer.size()); n > 0)
                 {
-                    if (i == 0)
-                        out.write(buffer, n);
+                    if (p.fd == stdout_pipe[0])
+                        out.write(buffer.data(), n);
                     else
-                        err.write(buffer, n);
+                        err.write(buffer.data(), n);
                 }
-                else if (n == 0)
+                else if (n == 0 || (errno != EINTR && errno != EAGAIN))
                 {
-                    close(fds[i].fd);
-                    fds[i].fd = -1;
+                    close(p.fd);
+                    p.fd = -1;
                     --open_pipes;
                 }
             }

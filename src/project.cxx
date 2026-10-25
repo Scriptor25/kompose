@@ -10,7 +10,7 @@ const kompose::SourceSet &kompose::Module::operator[](const std::string &name) c
     return SourceSets.at(name);
 }
 
-std::unordered_set<const kompose::SourceSet *> kompose::Module::IncludeInCompile() const
+const std::unordered_set<const kompose::SourceSet *> &kompose::Module::IncludeInCompile() const
 {
     switch (Type)
     {

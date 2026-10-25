@@ -10,7 +10,9 @@ namespace kompose
 {
     struct Process
     {
-        [[nodiscard]] toolkit::result<> operator()(std::ostream &out, std::ostream &err) const;
+        [[nodiscard]] toolkit::result<> operator()(
+            std::ostream &out,
+            std::ostream &err) const;
 
         void Push(Hash &builder) const;
 

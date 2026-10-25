@@ -61,7 +61,7 @@ namespace kompose
         SourceSet &operator[](const std::string &name);
         const SourceSet &operator[](const std::string &name) const;
 
-        [[nodiscard]] std::unordered_set<const SourceSet *> IncludeInCompile() const;
+        [[nodiscard]] const std::unordered_set<const SourceSet *> &IncludeInCompile() const;
 
         const Project *Parent;
 

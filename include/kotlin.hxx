@@ -43,7 +43,7 @@ namespace kompose
         Disabled,
     };
 
-    enum class KotlinJvmDefaultMode
+    enum class KotlinJvmDefault
     {
         None,
         Enable,
@@ -105,9 +105,11 @@ namespace kompose
     {
         Process Build() const;
 
+        void InsertExtra(std::span<const std::string> extra);
+
         std::unordered_set<std::string> Input;
 
-        std::vector<std::string> ExtraArguments;
+        std::vector<std::string> Extra;
 
 #pragma region Common
 
@@ -168,8 +170,8 @@ namespace kompose
 
 #pragma region JVM
 
-        /** -classpath <path> | -cp <path> */
-        std::optional<std::string> JvmClassPath;
+        /** -classpath <path:...> | -cp <path:...> */
+        std::unordered_set<std::string> JvmClassPath;
         /** -d <path> */
         std::optional<std::string> JvmDestination;
         /** -include-runtime */
@@ -178,8 +180,8 @@ namespace kompose
         std::optional<std::string> JvmJdkHome;
         /** -Xjdk-release <version> */
         std::optional<std::string> JvmJdkRelease;
-        /** -jvm-default-mode (enable|no-compatibility|disable) */
-        KotlinJvmDefaultMode JvmDefaultMode{};
+        /** -jvm-default (enable|no-compatibility|disable) */
+        KotlinJvmDefault JvmDefault{};
         /** -jvm-target <version> */
         std::optional<std::string> JvmTarget;
         /** -java-parameters */
@@ -194,11 +196,16 @@ namespace kompose
         bool JvmNoStdlib{};
         /** -script-templates <classname,...> */
         std::unordered_set<std::string> JvmScriptTemplates;
+        /** -Xadd-modules <module,...> */
+        std::unordered_set<std::string> JvmAddModules;
+        /** -Xdump-directory path */
+        std::optional<std::string> JvmDumpDirectory;
         /** -Xjvm-expose-boxed */
         bool JvmExposeBoxed{};
         /** -Xnullability-annotations \@<package name>:<report level> */
-        std::unordered_map<std::string, KotlinJvmNullabilityAnnotationReportLevel>
-        JvmNullabilityAnnotations;
+        std::unordered_map<std::string, KotlinJvmNullabilityAnnotationReportLevel> JvmNullabilityAnnotations;
+        /** -Xjvm-enable-preview */
+        bool JvmEnablePreview{};
 
 #pragma endregion
 

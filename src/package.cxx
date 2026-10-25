@@ -6,7 +6,7 @@
 #include <queue>
 #include <sstream>
 
-static toolkit::result<> package_jar(
+[[nodiscard]] static toolkit::result<> package_jar(
     const std::filesystem::path &args_file,
     const std::filesystem::path &output_file,
     const std::filesystem::path &fat_directory,
@@ -70,20 +70,15 @@ static toolkit::result<> package_jar(
             stream << arg << '\n';
     }
 
-    std::stringstream out, err;
     if (auto res = kompose::Process(
         { "jar", std::format("@{}", args_file.string()) }
-    )(out, err); !res)
-    {
-        std::cout << out.str();
-        std::cerr << err.str();
+    )(std::cout, std::cerr); !res)
         return res;
-    }
 
     return {};
 }
 
-static toolkit::result<> package_sources_jar(
+[[nodiscard]] static toolkit::result<> package_sources_jar(
     const std::filesystem::path &args_file,
     const std::filesystem::path &output_file,
     const std::unordered_set<const kompose::SourceSet *> &source_sets)
@@ -132,15 +127,10 @@ static toolkit::result<> package_sources_jar(
             stream << arg << '\n';
     }
 
-    std::stringstream out, err;
     if (auto res = kompose::Process(
         { "jar", std::format("@{}", args_file.string()) }
-    )(out, err); !res)
-    {
-        std::cout << out.str();
-        std::cerr << err.str();
+    )(std::cout, std::cerr); !res)
         return res;
-    }
 
     return {};
 }
@@ -229,26 +219,21 @@ toolkit::result<> kompose::package(
 
         std::unordered_set<std::filesystem::path> jar_paths;
         if (auto res = resolve(
-                            project,
-                            client,
-                            MavenResolveScope::ResolveAll,
-                            coordinates
-                        ) >> jar_paths; !res)
+                           project,
+                           client,
+                           MavenResolveScope::ResolveAll,
+                           coordinates
+                       ) >> jar_paths; !res)
             return res;
 
         for (const auto &path : jar_paths)
         {
-            std::stringstream out, err;
             if (auto res = Process
             {
                 .Args = { "jar", "-x", "-f", path },
                 .WorkingDirectory = fat_directory,
-            }(out, err); !res)
-            {
-                std::cerr << out.str();
-                std::cerr << err.str();
+            }(std::cout, std::cerr); !res)
                 return res;
-            }
         }
 
         if (const auto manifest = fat_directory / "META-INF" / "MANIFEST.MF";

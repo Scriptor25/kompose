@@ -1,12 +1,11 @@
 #pragma once
 
+#include <kotlin.hxx>
 #include <maven.hxx>
 
 #include <toml/toml.hxx>
 
 #include <data/serializer.hxx>
-
-#include <toolkit/string.hxx>
 
 #include <filesystem>
 #include <optional>
@@ -37,22 +36,27 @@ namespace kompose
 
         std::unordered_map<std::string, std::string> PluginOptions;
 
-        std::vector<std::string> ExtraArguments;
+        std::vector<std::string> Extra;
     };
 
     struct JvmCompilerConfigData
     {
         void Merge(const JvmCompilerConfigData &data);
 
-        std::optional<std::string> JdkHomePath;
-        std::optional<std::string> DefaultMode;
+        std::optional<std::string> JdkHome;
+        std::optional<KotlinJvmDefault> Default;
         std::optional<std::string> Target;
-
+        std::optional<bool> JavaParameters;
         std::optional<bool> NoJdk;
-        std::optional<bool> NoStdlib;
         std::optional<bool> NoReflect;
+        std::optional<bool> NoStdlib;
+        std::unordered_set<std::string> ScriptTemplates;
+        std::unordered_set<std::string> AddModules;
+        std::optional<bool> ExposeBoxed;
+        std::unordered_map<std::string, KotlinJvmNullabilityAnnotationReportLevel> NullabilityAnnotations;
+        std::optional<bool> EnablePreview;
 
-        std::optional<bool> GenerateJavaParameters;
+        std::vector<std::string> Extra;
     };
 
     struct JsCompilerConfigData
@@ -75,6 +79,8 @@ namespace kompose
 
         std::optional<bool> GenerateMetaInfo;
         std::optional<bool> GenerateSourceMap;
+
+        std::vector<std::string> Extra;
     };
 
     struct NativeCompilerConfigData
@@ -92,6 +98,8 @@ namespace kompose
 
         std::optional<bool> GenerateTestRunner;
         std::optional<bool> GenerateNoExitTestRunner;
+
+        std::vector<std::string> Extra;
     };
 
     struct KotlinCompilerConfig
@@ -293,4 +301,20 @@ struct data::serializer<toml::node, std::filesystem::path>
     static bool from_data(
         const toml::node &node,
         std::filesystem::path &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::KotlinJvmDefault>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::KotlinJvmDefault &value);
+};
+
+template<>
+struct data::serializer<toml::node, kompose::KotlinJvmNullabilityAnnotationReportLevel>
+{
+    static bool from_data(
+        const toml::node &node,
+        kompose::KotlinJvmNullabilityAnnotationReportLevel &value);
 };

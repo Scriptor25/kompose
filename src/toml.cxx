@@ -15,25 +15,33 @@ void kompose::CommonCompilerConfigData::Merge(const CommonCompilerConfigData &da
     if (!Progressive)
         Progressive = data.Progressive;
     PluginOptions.insert(data.PluginOptions.begin(), data.PluginOptions.end());
-    ExtraArguments.insert(ExtraArguments.end(), data.ExtraArguments.begin(), data.ExtraArguments.end());
+    Extra.insert(Extra.end(), data.Extra.begin(), data.Extra.end());
 }
 
 void kompose::JvmCompilerConfigData::Merge(const JvmCompilerConfigData &data)
 {
-    if (!JdkHomePath)
-        JdkHomePath = data.JdkHomePath;
-    if (!DefaultMode)
-        DefaultMode = data.DefaultMode;
+    if (!JdkHome)
+        JdkHome = data.JdkHome;
+    if (!Default)
+        Default = data.Default;
     if (!Target)
         Target = data.Target;
+    if (!JavaParameters)
+        JavaParameters = data.JavaParameters;
     if (!NoJdk)
         NoJdk = data.NoJdk;
-    if (!NoStdlib)
-        NoStdlib = data.NoStdlib;
     if (!NoReflect)
         NoReflect = data.NoReflect;
-    if (!GenerateJavaParameters)
-        GenerateJavaParameters = data.GenerateJavaParameters;
+    if (!NoStdlib)
+        NoStdlib = data.NoStdlib;
+    ScriptTemplates.insert(data.ScriptTemplates.begin(), data.ScriptTemplates.end());
+    AddModules.insert(data.AddModules.begin(), data.AddModules.end());
+    if (!ExposeBoxed)
+        ExposeBoxed = data.ExposeBoxed;
+    NullabilityAnnotations.insert(data.NullabilityAnnotations.begin(), data.NullabilityAnnotations.end());
+    if (!EnablePreview)
+        EnablePreview = data.EnablePreview;
+    Extra.insert(Extra.end(), data.Extra.begin(), data.Extra.end());
 }
 
 void kompose::JsCompilerConfigData::Merge(const JsCompilerConfigData &data)
@@ -60,6 +68,7 @@ void kompose::JsCompilerConfigData::Merge(const JsCompilerConfigData &data)
         GenerateMetaInfo = data.GenerateMetaInfo;
     if (!GenerateSourceMap)
         GenerateSourceMap = data.GenerateSourceMap;
+    Extra.insert(Extra.end(), data.Extra.begin(), data.Extra.end());
 }
 
 void kompose::NativeCompilerConfigData::Merge(const NativeCompilerConfigData &data)
@@ -80,6 +89,7 @@ void kompose::NativeCompilerConfigData::Merge(const NativeCompilerConfigData &da
         GenerateTestRunner = data.GenerateTestRunner;
     if (!GenerateNoExitTestRunner)
         GenerateNoExitTestRunner = data.GenerateNoExitTestRunner;
+    Extra.insert(Extra.end(), data.Extra.begin(), data.Extra.end());
 }
 
 void kompose::KotlinCompilerConfig::Merge(const KotlinCompilerConfig &config)
@@ -327,7 +337,7 @@ bool data::serializer<toml::node, kompose::CommonCompilerConfigData>::from_data(
     ok &= from_data_opt(node["optIn"], value.OptIn);
     ok &= node["progressive"] >> value.Progressive;
     ok &= from_data_opt(node["pluginOptions"], value.PluginOptions);
-    ok &= from_data_opt(node["extraArguments"], value.ExtraArguments);
+    ok &= from_data_opt(node["extra"], value.Extra);
 
     return ok;
 }
@@ -341,15 +351,22 @@ bool data::serializer<toml::node, kompose::JvmCompilerConfigData>::from_data(
 
     auto ok = true;
 
-    ok &= node["jdkHomePath"] >> value.JdkHomePath;
-    ok &= node["defaultMode"] >> value.DefaultMode;
+    ok &= node["jdkHome"] >> value.JdkHome;
+    ok &= node["default"] >> value.Default;
     ok &= node["target"] >> value.Target;
 
+    ok &= node["javaParameters"] >> value.JavaParameters;
     ok &= node["noJdk"] >> value.NoJdk;
-    ok &= node["noStdlib"] >> value.NoStdlib;
     ok &= node["noReflect"] >> value.NoReflect;
+    ok &= node["noStdlib"] >> value.NoStdlib;
+    ok &= node["exposeBoxed"] >> value.ExposeBoxed;
+    ok &= node["enablePreview"] >> value.EnablePreview;
 
-    ok &= node["generateJavaParameters"] >> value.GenerateJavaParameters;
+    ok &= from_data_opt(node["scriptTemplates"], value.ScriptTemplates);
+    ok &= from_data_opt(node["addModules"], value.AddModules);
+    ok &= from_data_opt(node["nullabilityAnnotations"], value.NullabilityAnnotations);
+
+    ok &= from_data_opt(node["extra"], value.Extra);
 
     return ok;
 }
@@ -382,6 +399,8 @@ bool data::serializer<toml::node, kompose::JsCompilerConfigData>::from_data(
     ok &= node["generateMetaInfo"] >> value.GenerateMetaInfo;
     ok &= node["generateSourceMap"] >> value.GenerateSourceMap;
 
+    ok &= from_data_opt(node["extra"], value.Extra);
+
     return ok;
 }
 
@@ -406,6 +425,8 @@ bool data::serializer<toml::node, kompose::NativeCompilerConfigData>::from_data(
     ok &= node["generateTestRunner"] >> value.GenerateTestRunner;
     ok &= node["generateNoExitTestRunner"] >> value.GenerateNoExitTestRunner;
 
+    ok &= from_data_opt(node["extra"], value.Extra);
+
     return ok;
 }
 
@@ -419,4 +440,52 @@ bool data::serializer<toml::node, std::filesystem::path>::from_data(
 
     value = std::move(str);
     return true;
+}
+
+bool data::serializer<toml::node, kompose::KotlinJvmDefault>::from_data(
+    const toml::node &node,
+    kompose::KotlinJvmDefault &value)
+{
+    static const std::unordered_map<std::string, kompose::KotlinJvmDefault> map
+    {
+        { "disable", kompose::KotlinJvmDefault::Disable },
+        { "enable", kompose::KotlinJvmDefault::Enable },
+        { "no-compatibility", kompose::KotlinJvmDefault::NoCompatibility },
+    };
+
+    std::string key;
+    if (!(node >> key))
+        return false;
+
+    if (const auto it = map.find(key); it != map.end())
+    {
+        value = it->second;
+        return true;
+    }
+
+    return false;
+}
+
+bool data::serializer<toml::node, kompose::KotlinJvmNullabilityAnnotationReportLevel>::from_data(
+    const toml::node &node,
+    kompose::KotlinJvmNullabilityAnnotationReportLevel &value)
+{
+    static const std::unordered_map<std::string, kompose::KotlinJvmNullabilityAnnotationReportLevel> map
+    {
+        { "ignore", kompose::KotlinJvmNullabilityAnnotationReportLevel::Ignore },
+        { "warn", kompose::KotlinJvmNullabilityAnnotationReportLevel::Warn },
+        { "strict", kompose::KotlinJvmNullabilityAnnotationReportLevel::Strict },
+    };
+
+    std::string key;
+    if (!(node >> key))
+        return false;
+
+    if (const auto it = map.find(key); it != map.end())
+    {
+        value = it->second;
+        return true;
+    }
+
+    return false;
 }

@@ -1,9 +1,8 @@
-#include <fstream>
 #include <kompose.hxx>
 #include <kotlin.hxx>
 
+#include <fstream>
 #include <iostream>
-#include <sstream>
 
 toolkit::result<> kompose::compile(
     const Project &project,
@@ -89,26 +88,19 @@ toolkit::result<> kompose::compile(
         }
     }
 
-    std::string class_path_string;
-    for (auto it = class_path.begin(); it != class_path.end(); ++it)
-    {
-        if (it != class_path.begin())
-            class_path_string += ':';
-        class_path_string += *it;
-    }
-
     KotlinCommand command
     {
         .Input = std::move(sources),
     };
 
     command.ApiVersion = source_set.Compiler.Common.ApiVersion;
-    command.LanguageVersion = source_set.Compiler.Common.LanguageVersion;
     command.KotlinHome = source_set.Compiler.Common.KotlinHomePath;
+    command.LanguageVersion = source_set.Compiler.Common.LanguageVersion;
     command.OptIn = source_set.Compiler.Common.OptIn;
     command.PluginOptions = source_set.Compiler.Common.PluginOptions;
     command.Progressive = source_set.Compiler.Common.Progressive.value_or(false);
-    command.ExtraArguments = source_set.Compiler.Common.ExtraArguments;
+
+    command.InsertExtra(source_set.Compiler.Common.Extra);
 
     switch (source_set.Compiler.Platform)
     {
@@ -116,46 +108,43 @@ toolkit::result<> kompose::compile(
     {
         const auto &data = std::get<JvmCompilerConfigData>(source_set.Compiler.Data);
 
-        command.JvmModuleName = module.Name;
+        std::unordered_set<std::string> class_path_string;
+        for (auto &entry : class_path)
+            class_path_string.insert(entry.string());
+        command.JvmClassPath = std::move(class_path_string);
         command.JvmDestination = destination_path;
-        command.JvmClassPath = class_path_string;
-
-        command.JvmTarget = data.Target;
-        command.JvmJdkHome = data.JdkHomePath;
-
-        command.JvmJavaParameters = data.GenerateJavaParameters.value_or(false);
-        command.JvmNoJdk = data.NoJdk.value_or(false);
-        command.JvmNoReflect = data.NoReflect.value_or(false);
-        command.JvmNoStdlib = data.NoStdlib.value_or(false);
-
-        if (data.DefaultMode)
-        {
-            if (data.DefaultMode == "disable")
-                command.JvmDefaultMode = KotlinJvmDefaultMode::Disable;
-            if (data.DefaultMode == "enable")
-                command.JvmDefaultMode = KotlinJvmDefaultMode::Enable;
-            if (data.DefaultMode == "no-compatibility")
-                command.JvmDefaultMode = KotlinJvmDefaultMode::NoCompatibility;
-        }
-
-        switch (module.Type)
-        {
-        case ModuleType::Application:
+        if (module.Type == ModuleType::Application)
             command.JvmIncludeRuntime = true;
-            break;
+        command.JvmJdkHome = data.JdkHome;
+        if (data.Default)
+            command.JvmDefault = *data.Default;
+        command.JvmTarget = data.Target;
+        if (data.JavaParameters)
+            command.JvmJavaParameters = *data.JavaParameters;
+        command.JvmModuleName = module.Name;
+        if (data.NoJdk)
+            command.JvmNoJdk = *data.NoJdk;
+        if (data.NoReflect)
+            command.JvmNoReflect = *data.NoReflect;
+        if (data.NoStdlib)
+            command.JvmNoStdlib = *data.NoStdlib;
+        command.JvmScriptTemplates = data.ScriptTemplates;
+        command.JvmAddModules = data.AddModules;
+        if (data.ExposeBoxed)
+            command.JvmExposeBoxed = *data.ExposeBoxed;
+        command.JvmNullabilityAnnotations = data.NullabilityAnnotations;
+        if (data.EnablePreview)
+            command.JvmEnablePreview = *data.EnablePreview;
 
-        case ModuleType::Library:
-            break;
-        }
-
+        command.InsertExtra(data.Extra);
         break;
     }
     case KotlinCompilerPlatform::Js:
-        return toolkit::make_error("TODO");
+        return toolkit::make_error("TODO: platform.js");
     case KotlinCompilerPlatform::Native:
-        return toolkit::make_error("TODO");
+        return toolkit::make_error("TODO: platform.native");
     default:
-        return toolkit::make_error("TODO");
+        return toolkit::make_error("TODO: platform.none");
     }
 
     auto process = command.Build();
@@ -167,13 +156,8 @@ toolkit::result<> kompose::compile(
     if (fingerprint == target_fingerprint)
         return {};
 
-    std::stringstream out, err;
-    if (auto res = process(out, err); !res)
-    {
-        std::cout << out.str();
-        std::cerr << err.str();
+    if (auto res = process(std::cout, std::cerr); !res)
         return res;
-    }
 
     {
         std::ofstream stream(fingerprint_path, std::ios::binary);

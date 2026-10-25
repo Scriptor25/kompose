@@ -6,6 +6,8 @@
 #include <http/client.hxx>
 #include <http/http.hxx>
 
+#include <toolkit/string.hxx>
+
 #include <fstream>
 #include <queue>
 
@@ -315,9 +317,9 @@ toolkit::result<const kompose::MavenDocument *> kompose::MavenDocumentPool::GetD
 bool kompose::MavenCoordinate::operator==(const MavenCoordinate &other) const
 {
     return Group == other.Group
-            && Artifact == other.Artifact
-            && Version == other.Version
-            && Classifier == other.Classifier;
+           && Artifact == other.Artifact
+           && Version == other.Version
+           && Classifier == other.Classifier;
 }
 
 std::filesystem::path kompose::MavenCoordinate::locate() const

@@ -117,7 +117,7 @@ namespace kompose
             const MavenDocumentPool &pool,
             const std::string &key) const;
 
-        toolkit::result<const MavenDocument *> GetParent(const MavenDocumentPool &pool) const;
+        [[nodiscard]] toolkit::result<const MavenDocument *> GetParent(const MavenDocumentPool &pool) const;
 
         [[nodiscard]] toolkit::result<std::unordered_set<const MavenDocument *>> GetDependencies(
             const MavenDocumentPool &pool,
@@ -178,7 +178,7 @@ struct std::hash<kompose::MavenCoordinate>
         return a ^ (b << 1);
     }
 
-    std::size_t operator()(const kompose::MavenCoordinate &value) const noexcept
+    [[nodiscard]] std::size_t operator()(const kompose::MavenCoordinate &value) const noexcept
     {
         const auto h1 = std::hash<std::string>()(value.Group);
         const auto h2 = std::hash<std::string>()(value.Artifact);
