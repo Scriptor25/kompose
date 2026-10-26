@@ -106,7 +106,7 @@ namespace kompose
     {
         void Merge(const KotlinCompilerConfig &config);
 
-        KotlinCompilerPlatform Platform;
+        KotlinCompilerPlatform Platform{};
 
         CommonCompilerConfigData Common;
         JvmCompilerConfigData Jvm;

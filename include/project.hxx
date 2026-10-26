@@ -24,7 +24,7 @@ namespace kompose
 
     struct KotlinCompiler
     {
-        KotlinCompilerPlatform Platform;
+        KotlinCompilerPlatform Platform{};
         CommonCompilerConfigData Common;
 
         std::variant<JvmCompilerConfigData, JsCompilerConfigData, NativeCompilerConfigData> Data;
