@@ -220,9 +220,7 @@ kompose::Process kompose::KotlinCommand::Build() const
     }
     if (!JvmAddModules.empty())
     {
-        args.emplace_back("-Xadd-modules");
-
-        std::string modules;
+        std::string modules = "-Xadd-modules=";
         for (auto it = JvmAddModules.begin(); it != JvmAddModules.end(); ++it)
         {
             if (it != JvmAddModules.begin())
