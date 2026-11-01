@@ -11,7 +11,7 @@ toolkit::result<> kompose::launch(
     const std::vector<std::string_view> &program_args)
 {
     if (module.Type != ModuleType::Application)
-        return toolkit::make_error("task '{}:launch' is not supported", module.Name);
+        return toolkit::make_error("task '{}:launch' is not supported", module.Id);
 
     const auto &data = std::get<ApplicationModuleData>(module.Data);
     const auto &main_class = data.Main;

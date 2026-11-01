@@ -152,6 +152,9 @@ namespace kompose
 
     struct ProjectConfig
     {
+        std::string Id;
+        std::filesystem::path Path;
+
         std::optional<std::string> Name;
 
         ProjectArtifactConfig Artifact;
@@ -190,6 +193,7 @@ namespace kompose
 
     struct ModuleConfig
     {
+        std::string Id;
         std::filesystem::path Path;
 
         ModuleType Type;

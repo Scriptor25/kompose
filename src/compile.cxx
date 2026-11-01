@@ -121,7 +121,7 @@ toolkit::result<> kompose::compile(
         command.JvmTarget = data.Target;
         if (data.JavaParameters)
             command.JvmJavaParameters = *data.JavaParameters;
-        command.JvmModuleName = module.Name;
+        command.JvmModuleName = module.Id;
         if (data.NoJdk)
             command.JvmNoJdk = *data.NoJdk;
         if (data.NoReflect)

@@ -6,8 +6,9 @@ void data::serializer<json::node, kompose::Project>::to_data(
 {
     node = json::object
     {
-        { "name", value.Name },
+        { "id", value.Id },
         { "path", value.Path },
+        { "name", value.Name },
         { "repositories", value.Repositories },
         { "modules", value.Modules },
     };
@@ -21,6 +22,7 @@ void data::serializer<json::node, kompose::Module>::to_data(
 
     node = json::object
     {
+        { "id", value.Id },
         { "name", value.Name },
         { "path", std::filesystem::relative(value.Path, base) },
         { "source", std::filesystem::relative(value.Source, base) },
@@ -67,7 +69,7 @@ void data::serializer<json::node, kompose::SourceSet>::to_data(
 
     node = json::object
     {
-        { "name", value.Name },
+        { "id", value.Id },
         { "source", std::filesystem::relative(value.Source, base) },
         { "build", std::filesystem::relative(value.Build, base) },
         {
@@ -136,14 +138,14 @@ void data::serializer<json::node, const kompose::SourceSet *>::to_data(
     json::node &node,
     const kompose::SourceSet *value)
 {
-    node = json::string(value->Name);
+    node = json::string(value->Id);
 }
 
 void data::serializer<json::node, const kompose::Module *>::to_data(
     json::node &node,
     const kompose::Module *value)
 {
-    node = json::string(value->Name);
+    node = json::string(value->Id);
 }
 
 void data::serializer<json::node, kompose::RepositoriesConfig>::to_data(

@@ -34,7 +34,7 @@ namespace kompose
     {
         const Module *Parent;
 
-        std::string Name;
+        std::string Id;
         std::filesystem::path Source;
         std::filesystem::path Build;
 
@@ -65,6 +65,7 @@ namespace kompose
 
         const Project *Parent;
 
+        std::string Id;
         ModuleType Type;
 
         std::string Name;
@@ -100,8 +101,10 @@ namespace kompose
         iterator begin() const;
         iterator end() const;
 
-        std::string Name;
+        std::string Id;
         std::filesystem::path Path;
+
+        std::string Name;
 
         RepositoriesConfig Repositories;
 

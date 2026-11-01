@@ -1,7 +1,6 @@
-#include "maven.hxx"
 #include <config.hxx>
 #include <kompose.hxx>
-#include <kotlin.hxx>
+#include <maven.hxx>
 #include <project.hxx>
 
 #include <args/args.hxx>
@@ -24,7 +23,6 @@
 #include <utility>
 
 [[nodiscard]] static toolkit::result<std::unique_ptr<kompose::Project>> build_project_from_config(
-    const std::filesystem::path &path,
     const kompose::ProjectConfig &project_config,
     const std::vector<kompose::ModuleConfig> &module_configs,
     const http::client &client)
@@ -32,8 +30,9 @@
     auto project_ptr = std::make_unique<kompose::Project>(
         kompose::Project
         {
-            .Name = *project_config.Name,
-            .Path = path,
+            .Id = project_config.Id,
+            .Path = project_config.Path,
+            .Name = project_config.Name.value_or(project_config.Id),
             .Repositories = project_config.Repositories,
         }
     );
@@ -42,33 +41,32 @@
 
     for (const auto &module_config : module_configs)
     {
-        const auto &name = *module_config.Name;
-
-        auto &module = project[name];
+        auto &module = project[module_config.Id];
 
         const auto source = module_config.Path / "src";
-        const auto build = path / "build" / name;
+        const auto build = project_config.Path / "build" / module_config.Id;
 
         module = {
             .Parent = &project,
+            .Id = module_config.Id,
             .Type = module_config.Type,
-            .Name = name,
+            .Name = module_config.Name.value_or(module_config.Id),
             .Path = module_config.Path,
             .Source = source,
             .Build = build,
             .Artifact = {
                 .Group = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
-                .Artifact = module_config.Artifact.Name.value_or(name),
+                .Artifact = module_config.Artifact.Name.value_or(module_config.Name.value_or(module_config.Id)),
                 .Version = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
             },
         };
 
-        for (const auto &name : module_config.SourceSets | std::views::keys)
-            module.SourceSets[name] = {
+        for (const auto &source_set_id : module_config.SourceSets | std::views::keys)
+            module.SourceSets[source_set_id] = {
                 .Parent = &module,
-                .Name = name,
-                .Source = source / name,
-                .Build = build / name,
+                .Id = source_set_id,
+                .Source = source / source_set_id,
+                .Build = build / source_set_id,
             };
 
         switch (module_config.Type)
@@ -117,13 +115,11 @@
 
     for (const auto &module_config : module_configs)
     {
-        const auto &name = *module_config.Name;
+        auto &module = project[module_config.Id];
 
-        auto &module = project[name];
-
-        for (const auto &[name, source_set_config] : module_config.SourceSets)
+        for (const auto &[source_set_id, source_set_config] : module_config.SourceSets)
         {
-            auto &source_set = module[name];
+            auto &source_set = module[source_set_id];
 
             for (const auto &dependency : project_config.Dependencies.Common.Modules)
             {
@@ -322,7 +318,7 @@ static void task_model(const kompose::Project &project)
 
     for (const auto *module : modules)
     {
-        std::cerr << "> " << module->Name << ":resolve";
+        std::cerr << "> " << module->Id << ":resolve";
         if (tag)
             std::cerr << " [" << tag << "]";
         std::cerr << std::endl;
@@ -358,7 +354,7 @@ static void task_model(const kompose::Project &project)
 {
     for (const auto *module : modules)
     {
-        std::cerr << "> " << module->Name << ":clean" << std::endl;
+        std::cerr << "> " << module->Id << ":clean" << std::endl;
 
         const auto &build = module->Build;
 
@@ -384,7 +380,7 @@ static void task_model(const kompose::Project &project)
 
     for (const auto *module : module_path)
     {
-        std::cerr << "> " << module->Name << ":compile" << std::endl;
+        std::cerr << "> " << module->Id << ":compile" << std::endl;
 
         for (const auto source_sets = module->IncludeInCompile();
              const auto *source_set : source_sets)
@@ -406,7 +402,7 @@ static void task_model(const kompose::Project &project)
         if (module->Type != kompose::ModuleType::Application)
             continue;
 
-        std::cerr << "> " << module->Name << ":launch" << std::endl;
+        std::cerr << "> " << module->Id << ":launch" << std::endl;
 
         if (auto res = kompose::launch(project, *module, client, program_args); !res)
             return res;
@@ -423,7 +419,7 @@ static void task_model(const kompose::Project &project)
 {
     for (const auto *module : modules)
     {
-        std::cerr << "> " << module->Name << ":package" << std::endl;
+        std::cerr << "> " << module->Id << ":package" << std::endl;
 
         if (auto res = kompose::package(project, *module, client, fat); !res)
             return res;
@@ -439,7 +435,7 @@ static void task_model(const kompose::Project &project)
 {
     for (const auto *module : modules)
     {
-        std::cerr << "> " << module->Name << ":install" << std::endl;
+        std::cerr << "> " << module->Id << ":install" << std::endl;
 
         if (auto res = kompose::install(project, *module, client); !res)
             return res;
@@ -533,35 +529,35 @@ static const args::manifest manifest
     if (!(project_node >> project_config))
         return toolkit::make_error("failed to parse project.toml");
 
-    if (!project_config.Name)
-        project_config.Name = project_path.filename();
+    project_config.Id = project_path.filename();
+    project_config.Path = project_path;
 
     std::vector<kompose::ModuleConfig> module_configs;
     for (const auto &filename : project_config.Modules.Include)
     {
         std::filesystem::path module_path;
-        std::string module_name;
+        std::string module_id;
         if (filename == ".")
         {
             module_path = project_path;
-            module_name = "<root>";
+            module_id = "<root>";
         }
         else
         {
             module_path = project_path / filename;
-            module_name = filename;
+            module_id = filename;
         }
 
         if (!std::filesystem::is_directory(module_path))
         {
-            std::cerr << "skip module '" << module_name << "': not a directory" << std::endl;
+            std::cerr << "skip module '" << module_id << "': not a directory" << std::endl;
             continue;
         }
 
         const auto module_toml = module_path / "module.toml";
         if (!std::filesystem::exists(module_toml))
         {
-            std::cerr << "skip module '" << module_name << "': module.toml does not exist" << std::endl;
+            std::cerr << "skip module '" << module_id << "': module.toml does not exist" << std::endl;
             continue;
         }
 
@@ -571,14 +567,12 @@ static const args::manifest manifest
         kompose::ModuleConfig module_config;
         if (!(module_node >> module_config))
         {
-            std::cerr << "skip module '" << module_name << "': failed to parse module.toml" << std::endl;
+            std::cerr << "skip module '" << module_id << "': failed to parse module.toml" << std::endl;
             continue;
         }
 
+        module_config.Id = module_id;
         module_config.Path = module_path;
-
-        if (!module_config.Name)
-            module_config.Name = module_name;
 
         module_configs.push_back(std::move(module_config));
     }
@@ -587,7 +581,7 @@ static const args::manifest manifest
     http::client client(*transport);
 
     std::unique_ptr<kompose::Project> project;
-    if (auto res = build_project_from_config(project_path, project_config, module_configs, client) >> project; !res)
+    if (auto res = build_project_from_config(project_config, module_configs, client) >> project; !res)
         return res;
 
     // TODO: task cache, i.e. if already compiled and source files did not change, then do not compile again
