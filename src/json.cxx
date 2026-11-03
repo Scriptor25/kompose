@@ -129,7 +129,7 @@ void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
         { "artifact", value.Artifact },
         { "version", value.Version },
         { "classifier", value.Classifier },
-        { "path", "repository" / value.locate() / value.get_filename("jar") },
+        { "path", "repository" / value.locate() / (value.Classifier ? value.get_filename(*value.Classifier, "jar") : value.get_filename("jar")) },
         { "sources", "repository" / value.locate() / value.get_filename("sources", "jar") },
     };
 }

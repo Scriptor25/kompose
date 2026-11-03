@@ -46,6 +46,7 @@ namespace kompose
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
             const Project &project,
             const http::client &client,
+            bool classifier,
             const std::string &extension,
             bool *resolved = nullptr) const;
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(

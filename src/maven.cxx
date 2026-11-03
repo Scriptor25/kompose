@@ -428,11 +428,22 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
     }
 
     if (!resolved && !file_resolved)
+    {
+        if (Classifier)
+            return toolkit::make_error(
+                "failed to resolve maven coordinate '{}:{}:{}:{}' ({})",
+                Group,
+                Artifact,
+                Version,
+                *Classifier,
+                filename);
         return toolkit::make_error(
-            "failed to resolve maven coordinate '{}:{}:{}'",
+            "failed to resolve maven coordinate '{}:{}:{}' ({})",
             Group,
             Artifact,
-            Version);
+            Version,
+            filename);
+    }
 
     if (resolved)
         *resolved = file_resolved;
@@ -442,10 +453,11 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
     const Project &project,
     const http::client &client,
+    const bool classifier,
     const std::string &extension,
     bool *resolved) const
 {
-    auto filename = Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
+    auto filename = classifier && Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
 
     return resolve_file_direct(project, client, filename, resolved);
 }
@@ -465,7 +477,7 @@ toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
     const http::client &client) const
 {
     std::filesystem::path local_path;
-    if (auto res = resolve_file(project, client, "pom") >> local_path; !res)
+    if (auto res = resolve_file(project, client, false, "pom") >> local_path; !res)
         return res;
 
     std::ifstream stream(local_path, std::ios::binary);
@@ -497,7 +509,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     for (const auto &coordinate : tree)
     {
         std::filesystem::path local_path;
-        if (auto res = coordinate.resolve_file(project, client, "jar") >> local_path; !res)
+        if (auto res = coordinate.resolve_file(project, client, true, "jar") >> local_path; !res)
             return res;
 
         paths.insert(local_path);
