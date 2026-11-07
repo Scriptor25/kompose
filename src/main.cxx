@@ -539,8 +539,8 @@ static const args::manifest manifest
         std::string module_id;
         if (filename == ".")
         {
-            module_path = project_path;
-            module_id = "<root>";
+            module_path = project_config.Path;
+            module_id = project_config.Id;
         }
         else
         {
