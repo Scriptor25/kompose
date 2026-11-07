@@ -457,9 +457,19 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
     const std::string &extension,
     bool *resolved) const
 {
-    auto filename = classifier && Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
+    const auto filename = classifier && Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
 
     return resolve_file_direct(project, client, filename, resolved);
+}
+
+toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
+    const Project &project,
+    const http::client &client,
+    const char *classifier,
+    const std::string &extension,
+    bool *resolved) const
+{
+    return resolve_file(project, client, std::string(classifier), extension, resolved);
 }
 
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(

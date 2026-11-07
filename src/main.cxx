@@ -121,68 +121,77 @@
         {
             auto &source_set = module[source_set_id];
 
-            for (const auto &dependency : project_config.Dependencies.Common.Modules)
+            for (const auto &module_name : project_config.Dependencies.Common.Modules)
+                if (auto dependency = project.byName(module_name))
+                {
+                    source_set.Compile.Modules.insert(dependency);
+                    source_set.Runtime.Modules.insert(dependency);
+                }
+            for (const auto &coordinate : project_config.Dependencies.Common.Maven)
             {
-                source_set.Compile.Modules.insert(&project[dependency]);
-                source_set.Runtime.Modules.insert(&project[dependency]);
-            }
-            for (const auto &dependency : project_config.Dependencies.Common.Maven)
-            {
-                source_set.Compile.Maven.insert(dependency);
-                source_set.Runtime.Maven.insert(dependency);
-            }
-
-            for (const auto &dependency : project_config.Dependencies.Compile.Modules)
-                source_set.Compile.Modules.insert(&project[dependency]);
-            for (const auto &dependency : project_config.Dependencies.Compile.Maven)
-                source_set.Compile.Maven.insert(dependency);
-
-            for (const auto &dependency : project_config.Dependencies.Runtime.Modules)
-                source_set.Runtime.Modules.insert(&project[dependency]);
-            for (const auto &dependency : project_config.Dependencies.Runtime.Maven)
-                source_set.Runtime.Maven.insert(dependency);
-
-            for (const auto &dependency : module_config.Dependencies.Common.Modules)
-            {
-                source_set.Compile.Modules.insert(&project[dependency]);
-                source_set.Runtime.Modules.insert(&project[dependency]);
-            }
-            for (const auto &dependency : module_config.Dependencies.Common.Maven)
-            {
-                source_set.Compile.Maven.insert(dependency);
-                source_set.Runtime.Maven.insert(dependency);
+                source_set.Compile.Maven.insert(coordinate);
+                source_set.Runtime.Maven.insert(coordinate);
             }
 
-            for (const auto &dependency : module_config.Dependencies.Compile.Modules)
-                source_set.Compile.Modules.insert(&project[dependency]);
-            for (const auto &dependency : module_config.Dependencies.Compile.Maven)
-                source_set.Compile.Maven.insert(dependency);
+            for (const auto &module_name : project_config.Dependencies.Compile.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Compile.Modules.insert(dependency);
+            for (const auto &coordinate : project_config.Dependencies.Compile.Maven)
+                source_set.Compile.Maven.insert(coordinate);
 
-            for (const auto &dependency : module_config.Dependencies.Runtime.Modules)
-                source_set.Runtime.Modules.insert(&project[dependency]);
-            for (const auto &dependency : module_config.Dependencies.Runtime.Maven)
-                source_set.Runtime.Maven.insert(dependency);
+            for (const auto &module_name : project_config.Dependencies.Runtime.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Runtime.Modules.insert(dependency);
+            for (const auto &coordinate : project_config.Dependencies.Runtime.Maven)
+                source_set.Runtime.Maven.insert(coordinate);
 
-            for (const auto &dependency : source_set_config.Dependencies.Common.Modules)
+            for (const auto &module_name : module_config.Dependencies.Common.Modules)
+                if (auto dependency = project.byName(module_name))
+                {
+                    source_set.Compile.Modules.insert(dependency);
+                    source_set.Runtime.Modules.insert(dependency);
+                }
+            for (const auto &coordinate : module_config.Dependencies.Common.Maven)
             {
-                source_set.Compile.Modules.insert(&project[dependency]);
-                source_set.Runtime.Modules.insert(&project[dependency]);
+                source_set.Compile.Maven.insert(coordinate);
+                source_set.Runtime.Maven.insert(coordinate);
             }
-            for (const auto &dependency : source_set_config.Dependencies.Common.Maven)
+
+            for (const auto &module_name : module_config.Dependencies.Compile.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Compile.Modules.insert(dependency);
+            for (const auto &coordinate : module_config.Dependencies.Compile.Maven)
+                source_set.Compile.Maven.insert(coordinate);
+
+            for (const auto &module_name : module_config.Dependencies.Runtime.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Runtime.Modules.insert(dependency);
+            for (const auto &coordinate : module_config.Dependencies.Runtime.Maven)
+                source_set.Runtime.Maven.insert(coordinate);
+
+            for (const auto &module_name : source_set_config.Dependencies.Common.Modules)
+                if (auto dependency = project.byName(module_name))
+                {
+                    source_set.Compile.Modules.insert(dependency);
+                    source_set.Runtime.Modules.insert(dependency);
+                }
+            for (const auto &coordinate : source_set_config.Dependencies.Common.Maven)
             {
-                source_set.Compile.Maven.insert(dependency);
-                source_set.Runtime.Maven.insert(dependency);
+                source_set.Compile.Maven.insert(coordinate);
+                source_set.Runtime.Maven.insert(coordinate);
             }
 
-            for (const auto &dependency : source_set_config.Dependencies.Compile.Modules)
-                source_set.Compile.Modules.insert(&project[dependency]);
-            for (const auto &dependency : source_set_config.Dependencies.Compile.Maven)
-                source_set.Compile.Maven.insert(dependency);
+            for (const auto &module_name : source_set_config.Dependencies.Compile.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Compile.Modules.insert(dependency);
+            for (const auto &coordinate : source_set_config.Dependencies.Compile.Maven)
+                source_set.Compile.Maven.insert(coordinate);
 
-            for (const auto &dependency : source_set_config.Dependencies.Runtime.Modules)
-                source_set.Runtime.Modules.insert(&project[dependency]);
-            for (const auto &dependency : source_set_config.Dependencies.Runtime.Maven)
-                source_set.Runtime.Maven.insert(dependency);
+            for (const auto &module_name : source_set_config.Dependencies.Runtime.Modules)
+                if (auto dependency = project.byName(module_name))
+                    source_set.Runtime.Modules.insert(dependency);
+            for (const auto &coordinate : source_set_config.Dependencies.Runtime.Maven)
+                source_set.Runtime.Maven.insert(coordinate);
 
             if (auto res = kompose::resolve_tree(
                                project,

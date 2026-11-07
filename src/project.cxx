@@ -1,4 +1,5 @@
 #include <project.hxx>
+#include <ranges>
 
 kompose::SourceSet &kompose::Module::operator[](const std::string &name)
 {
@@ -47,19 +48,27 @@ const kompose::Module &kompose::Project::iterator::operator*() const
     return base->second;
 }
 
-kompose::Module &kompose::Project::operator[](const std::string &name)
+kompose::Module &kompose::Project::operator[](const std::string &id)
 {
-    return Modules[name];
+    return Modules[id];
 }
 
-const kompose::Module &kompose::Project::operator[](const std::string &name) const
+const kompose::Module &kompose::Project::operator[](const std::string &id) const
 {
-    return Modules.at(name);
+    return Modules.at(id);
 }
 
-kompose::Project::iterator kompose::Project::find(const std::string &name) const
+const kompose::Module *kompose::Project::byName(const std::string &name) const
 {
-    return { Modules.find(name) };
+    for (const auto &module : Modules | std::views::values)
+        if (module.Name == name)
+            return &module;
+    return nullptr;
+}
+
+kompose::Project::iterator kompose::Project::find(const std::string &id) const
+{
+    return { Modules.find(id) };
 }
 
 kompose::Project::iterator kompose::Project::begin() const

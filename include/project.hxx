@@ -93,10 +93,12 @@ namespace kompose
             std::unordered_map<std::string, Module>::const_iterator base;
         };
 
-        Module &operator[](const std::string &name);
-        const Module &operator[](const std::string &name) const;
+        Module &operator[](const std::string &id);
+        const Module &operator[](const std::string &id) const;
 
-        iterator find(const std::string &name) const;
+        const Module *byName(const std::string &name) const;
+
+        iterator find(const std::string &id) const;
 
         iterator begin() const;
         iterator end() const;
