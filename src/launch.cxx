@@ -84,8 +84,9 @@ toolkit::result<> kompose::launch(
     {
     case KotlinCompilerPlatform::Jvm:
     {
-        std::optional<std::string> jdkHome;
-        std::optional<bool> enablePreview;
+        std::optional<std::string> jdk_home;
+        std::optional<bool> enable_preview;
+        std::unordered_set<std::string> add_modules;
 
         for (const auto *source_set : module.IncludeInCompile())
         {
@@ -93,22 +94,24 @@ toolkit::result<> kompose::launch(
 
             if (compiler_data.JdkHome)
             {
-                if (!jdkHome)
-                    jdkHome = compiler_data.JdkHome;
-                else if (jdkHome != compiler_data.JdkHome)
+                if (!jdk_home)
+                    jdk_home = compiler_data.JdkHome;
+                else if (jdk_home != compiler_data.JdkHome)
                     return toolkit::make_error("source sets do not share the same jdk home");
             }
 
             if (compiler_data.EnablePreview)
             {
-                if (!enablePreview)
-                    enablePreview = compiler_data.EnablePreview;
-                else if (enablePreview != compiler_data.EnablePreview)
+                if (!enable_preview)
+                    enable_preview = compiler_data.EnablePreview;
+                else if (enable_preview != compiler_data.EnablePreview)
                     return toolkit::make_error("source sets do not share the same enable preview");
             }
+
+            add_modules.insert(compiler_data.AddModules.begin(), compiler_data.AddModules.end());
         }
 
-        auto java = jdkHome ? (std::filesystem::path(*jdkHome) / "bin" / "java").string() : "java";
+        auto java = jdk_home ? (std::filesystem::path(*jdk_home) / "bin" / "java").string() : "java";
 
         std::vector<std::string> args;
         args.emplace_back(java);
@@ -127,8 +130,22 @@ toolkit::result<> kompose::launch(
             args.push_back(std::move(str));
         }
 
-        if (enablePreview && *enablePreview)
+        if (enable_preview && *enable_preview)
             args.emplace_back("--enable-preview");
+
+        if (!add_modules.empty())
+        {
+            args.emplace_back("--add-modules");
+
+            std::string str;
+            for (auto it = add_modules.begin(); it != add_modules.end(); ++it)
+            {
+                if (it != add_modules.begin())
+                    str += ',';
+                str += *it;
+            }
+            args.push_back(std::move(str));
+        }
 
         args.push_back(main_class);
 
