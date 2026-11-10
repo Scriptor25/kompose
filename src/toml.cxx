@@ -164,16 +164,17 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
 
     ok &= from_data_opt(sources, value.SourceSets);
 
+    ok &= from_data_opt(node["compiler"], value.CompilerConfig);
+
     if (type == "application")
     {
         value.Type = kompose::ModuleType::Application;
 
         auto &application = node["application"];
 
-        kompose::ApplicationModuleConfigData data;
+        kompose::ApplicationModuleConfigData data{};
 
         ok &= application["main"] >> data.Main;
-        ok &= from_data_opt(application["include"], data.Include, {});
 
         value.Data = std::move(data);
         return ok;
@@ -185,16 +186,13 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
 
         auto &library = node["library"];
 
-        kompose::LibraryModuleConfigData data;
+        kompose::LibraryModuleConfigData data{};
 
         ok &= from_data_opt(library["sources"], data.IncludeSources, false);
-        ok &= from_data_opt(library["include"], data.Include, {});
 
         value.Data = std::move(data);
         return ok;
     }
-
-    ok &= from_data_opt(node["compiler"], value.CompilerConfig);
 
     return false;
 }
@@ -218,6 +216,10 @@ bool data::serializer<toml::node, kompose::SourceSetConfig>::from_data(
     ok &= from_data_opt(dependencies["runtime"], value.Dependencies.Runtime);
 
     ok &= from_data_opt(node["compiler"], value.CompilerConfig);
+
+    ok &= from_data_opt(node["include"], value.Include);
+
+    ok &= from_data_opt(node["test"], value.Test);
 
     return ok;
 }

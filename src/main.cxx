@@ -22,6 +22,16 @@
 #include <unordered_set>
 #include <utility>
 
+static const kompose::Module *module_by_name(const kompose::Project &project, const std::string &name)
+{
+    for (const auto &module : project.Modules | std::views::values)
+        if (module.Name == name)
+            return &module;
+
+    std::cerr << "undefined module '" << name << "' in project." << std::endl;
+    return nullptr;
+}
+
 [[nodiscard]] static toolkit::result<std::unique_ptr<kompose::Project>> build_project_from_config(
     const kompose::ProjectConfig &project_config,
     const std::vector<kompose::ModuleConfig> &module_configs,
@@ -30,9 +40,9 @@
     auto project_ptr = std::make_unique<kompose::Project>(
         kompose::Project
         {
-            .Id = project_config.Id,
-            .Path = project_config.Path,
-            .Name = project_config.Name.value_or(project_config.Id),
+            .Id           = project_config.Id,
+            .Path         = project_config.Path,
+            .Name         = project_config.Name.value_or(project_config.Id),
             .Repositories = project_config.Repositories,
         }
     );
@@ -47,26 +57,27 @@
         const auto build = project_config.Path / "build" / module_config.Id;
 
         module = {
-            .Parent = &project,
-            .Id = module_config.Id,
-            .Type = module_config.Type,
-            .Name = module_config.Name.value_or(module_config.Id),
-            .Path = module_config.Path,
-            .Source = source,
-            .Build = build,
+            .Parent   = &project,
+            .Id       = module_config.Id,
+            .Type     = module_config.Type,
+            .Name     = module_config.Name.value_or(module_config.Id),
+            .Path     = module_config.Path,
+            .Source   = source,
+            .Build    = build,
             .Artifact = {
-                .Group = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
+                .Group    = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
                 .Artifact = module_config.Artifact.Name.value_or(module_config.Name.value_or(module_config.Id)),
-                .Version = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
+                .Version  = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
             },
         };
 
-        for (const auto &source_set_id : module_config.SourceSets | std::views::keys)
+        for (const auto &[source_set_id, source_set_config] : module_config.SourceSets)
             module.SourceSets[source_set_id] = {
                 .Parent = &module,
-                .Id = source_set_id,
+                .Id     = source_set_id,
                 .Source = source / source_set_id,
-                .Build = build / source_set_id,
+                .Build  = build / source_set_id,
+                .Test   = source_set_config.Test,
             };
 
         switch (module_config.Type)
@@ -80,13 +91,6 @@
                 .Main = module_data.Main,
             };
 
-            for (auto &include : module_data.Include)
-            {
-                auto &it = module[include];
-
-                data.Include.insert(&it);
-            }
-
             module.Data = std::move(data);
             break;
         }
@@ -99,13 +103,6 @@
             {
                 .IncludeSources = module_data.IncludeSources,
             };
-
-            for (auto &include : module_data.Include)
-            {
-                auto &it = module[include];
-
-                data.Include.insert(&it);
-            }
 
             module.Data = std::move(data);
             break;
@@ -122,7 +119,7 @@
             auto &source_set = module[source_set_id];
 
             for (const auto &module_name : project_config.Dependencies.Common.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -134,19 +131,19 @@
             }
 
             for (const auto &module_name : project_config.Dependencies.Compile.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : project_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
             for (const auto &module_name : project_config.Dependencies.Runtime.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : project_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
 
             for (const auto &module_name : module_config.Dependencies.Common.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -158,19 +155,19 @@
             }
 
             for (const auto &module_name : module_config.Dependencies.Compile.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : module_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
             for (const auto &module_name : module_config.Dependencies.Runtime.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : module_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
 
             for (const auto &module_name : source_set_config.Dependencies.Common.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -182,13 +179,13 @@
             }
 
             for (const auto &module_name : source_set_config.Dependencies.Compile.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : source_set_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
             for (const auto &module_name : source_set_config.Dependencies.Runtime.Modules)
-                if (auto dependency = project.byName(module_name))
+                if (auto dependency = module_by_name(project, module_name))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : source_set_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
@@ -248,6 +245,26 @@
             }
             default:
                 break;
+            }
+
+            for (const auto &id : source_set_config.Include)
+            {
+                const auto it = module.SourceSets.find(id);
+                if (it == module.SourceSets.end())
+                {
+                    std::cerr
+                        << "undefined source set '"
+                        << id
+                        << "' in module '"
+                        << module.Name
+                        << "' ("
+                        << module.Id
+                        << ")."
+                        << std::endl;
+                    continue;
+                }
+
+                source_set.Include.insert(&it->second);
             }
         }
     }
@@ -332,8 +349,8 @@ static void task_model(const kompose::Project &project)
             std::cerr << " [" << tag << "]";
         std::cerr << std::endl;
 
-        for (const auto source_sets = module->IncludeInCompile();
-             const auto *source_set : source_sets)
+        // TODO: test
+        for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
         {
             switch (scope)
             {
@@ -391,8 +408,8 @@ static void task_model(const kompose::Project &project)
     {
         std::cerr << "> " << module->Id << ":compile" << std::endl;
 
-        for (const auto source_sets = module->IncludeInCompile();
-             const auto *source_set : source_sets)
+        // TODO: test
+        for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
             if (auto res = kompose::compile(project, *module, *source_set, client); !res)
                 return res;
     }
@@ -597,12 +614,12 @@ static const args::manifest manifest
     // TODO: same if already packaged and neither source files nor resources did change, then do not package again
 
     std::unordered_set<const kompose::Module *>
-            resolve_modules,
-            clean_modules,
-            compile_modules,
-            launch_modules,
-            package_modules,
-            install_modules;
+        resolve_modules,
+        clean_modules,
+        compile_modules,
+        launch_modules,
+        package_modules,
+        install_modules;
 
     for (const auto &[task, module_name] : tasks)
     {
@@ -633,8 +650,8 @@ static const args::manifest manifest
             const auto *module = queue.front();
             modules_with_dependencies.insert(module);
 
-            for (const auto source_sets = module->IncludeInCompile();
-                 const auto *source_set : source_sets)
+            // TODO: test
+            for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
                 for (const auto *dependency : source_set->Compile.Modules)
                     queue.push(dependency);
         }

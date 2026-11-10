@@ -20,6 +20,7 @@ toolkit::result<> kompose::install(
     const auto repository = std::filesystem::path(home) / ".m2" / "repository" / module.Artifact.locate();
 
     bool generate_sources;
+
     switch (module.Type)
     {
     case ModuleType::Application:
@@ -27,6 +28,7 @@ toolkit::result<> kompose::install(
         const auto &data = std::get<ApplicationModuleData>(module.Data);
 
         generate_sources = false;
+
         break;
     }
 
@@ -35,6 +37,7 @@ toolkit::result<> kompose::install(
         const auto &data = std::get<LibraryModuleData>(module.Data);
 
         generate_sources = data.IncludeSources;
+
         break;
     }
     }
@@ -110,9 +113,10 @@ toolkit::result<> kompose::install(
         </dependency>)";
 
     std::string dependencies;
-    for (const auto *source_set : module.IncludeInCompile())
+    // only install non-test source sets
+    for (const auto *source_set : module.GetSourceSets(false))
     {
-        for (const auto &dependency : source_set->Compile.Modules)
+        for (const auto *dependency : source_set->Compile.Modules)
         {
             dependencies += std::format(
                 dependency_template,
@@ -140,7 +144,7 @@ toolkit::result<> kompose::install(
                     "compile");
         }
 
-        for (const auto &dependency : source_set->Runtime.Modules)
+        for (const auto *dependency : source_set->Runtime.Modules)
         {
             dependencies += std::format(
                 dependency_template,

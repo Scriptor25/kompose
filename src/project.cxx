@@ -11,25 +11,13 @@ const kompose::SourceSet &kompose::Module::operator[](const std::string &name) c
     return SourceSets.at(name);
 }
 
-const std::unordered_set<const kompose::SourceSet *> &kompose::Module::IncludeInCompile() const
+std::unordered_set<const kompose::SourceSet *> kompose::Module::GetSourceSets(const bool test) const
 {
-    switch (Type)
-    {
-    case ModuleType::Application:
-    {
-        const auto &data = std::get<ApplicationModuleData>(Data);
-        return data.Include;
-    }
-
-    case ModuleType::Library:
-    {
-        const auto &data = std::get<LibraryModuleData>(Data);
-        return data.Include;
-    }
-
-    default:
-        throw std::runtime_error("dead code");
-    }
+    std::unordered_set<const SourceSet *> source_sets;
+    for (const auto &source_set : SourceSets | std::views::values)
+        if (test || !source_set.Test)
+            source_sets.insert(&source_set);
+    return source_sets;
 }
 
 bool kompose::Project::iterator::operator==(const iterator &other) const
@@ -56,14 +44,6 @@ kompose::Module &kompose::Project::operator[](const std::string &id)
 const kompose::Module &kompose::Project::operator[](const std::string &id) const
 {
     return Modules.at(id);
-}
-
-const kompose::Module *kompose::Project::byName(const std::string &name) const
-{
-    for (const auto &module : Modules | std::views::values)
-        if (module.Name == name)
-            return &module;
-    return nullptr;
 }
 
 kompose::Project::iterator kompose::Project::find(const std::string &id) const

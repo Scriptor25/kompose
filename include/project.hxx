@@ -42,18 +42,19 @@ namespace kompose
         Dependency Runtime;
 
         KotlinCompiler Compiler;
+
+        bool Test;
+        std::unordered_set<const SourceSet *> Include;
     };
 
     struct ApplicationModuleData
     {
         std::string Main;
-        std::unordered_set<const SourceSet *> Include;
     };
 
     struct LibraryModuleData
     {
         bool IncludeSources;
-        std::unordered_set<const SourceSet *> Include;
     };
 
     struct Module
@@ -61,7 +62,7 @@ namespace kompose
         SourceSet &operator[](const std::string &name);
         const SourceSet &operator[](const std::string &name) const;
 
-        [[nodiscard]] const std::unordered_set<const SourceSet *> &IncludeInCompile() const;
+        [[nodiscard]] std::unordered_set<const SourceSet *> GetSourceSets(bool test) const;
 
         const Project *Parent;
 
@@ -95,8 +96,6 @@ namespace kompose
 
         Module &operator[](const std::string &id);
         const Module &operator[](const std::string &id) const;
-
-        const Module *byName(const std::string &name) const;
 
         iterator find(const std::string &id) const;
 

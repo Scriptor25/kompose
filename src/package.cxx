@@ -141,6 +141,9 @@ toolkit::result<> kompose::package(
     const http::client &client,
     const bool fat)
 {
+    // only package non-test source sets
+    auto source_sets = module.GetSourceSets(false);
+
     const auto args_file = module.Build / "args";
     const auto output_file = module.Build / module.Artifact.get_filename("jar");
     const auto fat_directory = module.Build / "fat";
@@ -148,7 +151,6 @@ toolkit::result<> kompose::package(
     const auto sources_args_file = module.Build / "args-sources";
     const auto sources_output_file = module.Build / module.Artifact.get_filename("sources", "jar");
 
-    std::unordered_set<const SourceSet *> source_sets;
     bool generate_sources;
     std::optional<std::string> entry;
 
@@ -158,10 +160,9 @@ toolkit::result<> kompose::package(
     {
         const auto &data = std::get<ApplicationModuleData>(module.Data);
 
-        source_sets = data.Include;
         generate_sources = false;
-
         entry = data.Main;
+
         break;
     }
 
@@ -169,7 +170,6 @@ toolkit::result<> kompose::package(
     {
         const auto &data = std::get<LibraryModuleData>(module.Data);
 
-        source_sets = data.Include;
         generate_sources = data.IncludeSources;
 
         break;
@@ -202,12 +202,15 @@ toolkit::result<> kompose::package(
             const auto *source_set = queue.front();
             source_sets.insert(source_set);
 
-            for (const auto *mod : source_set->Compile.Modules)
-                for (const auto *set : mod->IncludeInCompile())
+            for (const auto *dependency : source_set->Compile.Modules)
+                for (const auto *set : dependency->GetSourceSets(false))
                     queue.push(set);
-            for (const auto *mod : source_set->Runtime.Modules)
-                for (const auto *set : mod->IncludeInCompile())
+            for (const auto *dependency : source_set->Runtime.Modules)
+                for (const auto *set : dependency->GetSourceSets(false))
                     queue.push(set);
+
+            for (const auto *include : source_set->Include)
+                queue.push(include);
         }
 
         std::unordered_set<MavenCoordinate> coordinates;
@@ -230,14 +233,13 @@ toolkit::result<> kompose::package(
         {
             if (auto res = Process
             {
-                .Args = { "jar", "-x", "-f", path },
+                .Args             = { "jar", "-x", "-f", path },
                 .WorkingDirectory = fat_directory,
             }(std::cout, std::cerr); !res)
                 return res;
         }
 
-        if (const auto manifest = fat_directory / "META-INF" / "MANIFEST.MF";
-            std::filesystem::exists(manifest))
+        if (const auto manifest = fat_directory / "META-INF" / "MANIFEST.MF"; std::filesystem::exists(manifest))
             if (std::error_code ec; std::filesystem::remove(manifest, ec), ec)
                 return toolkit::make_error(
                     "failed to remove file '{}': {} ({})",

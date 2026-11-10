@@ -55,9 +55,12 @@ toolkit::result<> kompose::compile(
 
     std::unordered_set<std::filesystem::path> class_path;
     for (const auto *dependency : source_set.Compile.Modules)
-        for (const auto source_sets = dependency->IncludeInCompile();
-             const auto *set : source_sets)
+        // TODO: test
+        for (const auto source_sets = dependency->GetSourceSets(false); const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
+
+    for (const auto *set : source_set.Include)
+        class_path.insert(set->Build / "classes");
 
     {
         std::unordered_set<std::filesystem::path> paths;

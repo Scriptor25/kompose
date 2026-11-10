@@ -176,19 +176,19 @@ namespace kompose
     struct ApplicationModuleConfigData
     {
         std::string Main;
-        std::unordered_set<std::string> Include;
     };
 
     struct LibraryModuleConfigData
     {
         bool IncludeSources;
-        std::unordered_set<std::string> Include;
     };
 
     struct SourceSetConfig
     {
         DependenciesConfig Dependencies;
         KotlinCompilerConfig CompilerConfig;
+        std::unordered_set<std::string> Include;
+        bool Test;
     };
 
     struct ModuleConfig

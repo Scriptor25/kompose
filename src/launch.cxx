@@ -26,7 +26,8 @@ toolkit::result<> kompose::launch(
         const auto *mod = queue.front();
         module_dependencies.insert(mod);
 
-        for (const auto *source_set : mod->IncludeInCompile())
+        // TODO: test
+        for (const auto *source_set : mod->GetSourceSets(false))
         {
             for (const auto *dependency : source_set->Compile.Modules)
                 queue.push(dependency);
@@ -43,7 +44,8 @@ toolkit::result<> kompose::launch(
     std::unordered_set<std::filesystem::path> class_path;
 
     for (const auto *dependency : module_dependencies)
-        for (const auto *source_set : dependency->IncludeInCompile())
+        // TODO: test
+        for (const auto *source_set : dependency->GetSourceSets(false))
         {
             auto classes_directory = source_set->Build / "classes";
             class_path.insert(classes_directory);
@@ -51,6 +53,16 @@ toolkit::result<> kompose::launch(
             auto resources_directory = source_set->Source / "resources";
             if (std::filesystem::exists(resources_directory))
                 class_path.insert(resources_directory);
+
+            for (const auto *include : source_set->Include)
+            {
+                auto include_classes_directory = include->Build / "classes";
+                class_path.insert(include_classes_directory);
+
+                auto include_resources_directory = include->Source / "resources";
+                if (std::filesystem::exists(include_resources_directory))
+                    class_path.insert(include_resources_directory);
+            }
         }
 
     {
@@ -68,7 +80,8 @@ toolkit::result<> kompose::launch(
     // TODO: instead of finding common platform, select included source sets by platform
 
     KotlinCompilerPlatform platform{};
-    for (const auto *source_set : module.IncludeInCompile())
+    // TODO: test
+    for (const auto *source_set : module.GetSourceSets(false))
     {
         if (platform == KotlinCompilerPlatform::None)
         {
@@ -88,7 +101,8 @@ toolkit::result<> kompose::launch(
         std::optional<bool> enable_preview;
         std::unordered_set<std::string> add_modules;
 
-        for (const auto *source_set : module.IncludeInCompile())
+        // TODO: test
+        for (const auto *source_set : module.GetSourceSets(false))
         {
             const auto &compiler_data = std::get<JvmCompilerConfigData>(source_set->Compiler.Data);
 

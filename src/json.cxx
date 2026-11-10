@@ -81,6 +81,8 @@ void data::serializer<json::node, kompose::SourceSet>::to_data(
             },
         },
         { "compiler", value.Compiler },
+        { "include", value.Include },
+        { "test", value.Test },
     };
 }
 
@@ -92,7 +94,6 @@ void data::serializer<json::node, kompose::ApplicationModuleData>::to_data(
     {
         { "type", "application" },
         { "main", value.Main },
-        { "include", value.Include },
     };
 }
 
@@ -104,7 +105,6 @@ void data::serializer<json::node, kompose::LibraryModuleData>::to_data(
     {
         { "type", "library" },
         { "include_sources", value.IncludeSources },
-        { "include", value.Include },
     };
 }
 

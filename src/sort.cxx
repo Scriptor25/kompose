@@ -1,6 +1,7 @@
 #include <kompose.hxx>
 
 #include <queue>
+#include <ranges>
 
 toolkit::result<std::vector<const kompose::Module *>> kompose::topological_sort(
     const std::unordered_set<const Module *> &modules)
@@ -12,9 +13,8 @@ toolkit::result<std::vector<const kompose::Module *>> kompose::topological_sort(
         in_degree[module] = {};
 
     for (const auto *module : modules)
-        for (const auto source_sets = module->IncludeInCompile();
-             const auto *source_set : source_sets)
-            for (const auto *dependency : source_set->Compile.Modules)
+        for (const auto &source_set : module->SourceSets | std::views::values)
+            for (const auto *dependency : source_set.Compile.Modules)
             {
                 if (!modules.contains(dependency))
                     continue;
