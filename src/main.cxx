@@ -321,7 +321,7 @@ static void task_model(const kompose::Project &project)
 [[nodiscard]] static toolkit::result<> task_resolve(
     const kompose::Project &project,
     const std::unordered_set<const kompose::Module *> &modules,
-    kompose::MavenResolveScope scope,
+    const kompose::MavenResolveScope scope,
     const http::client &client)
 {
     std::unordered_set<kompose::MavenCoordinate> coordinates;
@@ -350,7 +350,7 @@ static void task_model(const kompose::Project &project)
         std::cerr << std::endl;
 
         // TODO: test
-        for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
+        for (const auto source_sets = module->GetSourceSets(true); const auto *source_set : source_sets)
         {
             switch (scope)
             {

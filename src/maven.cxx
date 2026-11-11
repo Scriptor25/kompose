@@ -92,9 +92,9 @@ toolkit::result<kompose::MavenCoordinate> kompose::MavenDocument::GetCoordinate(
 
     return MavenCoordinate
     {
-        .Group = std::move(group),
+        .Group    = std::move(group),
         .Artifact = std::move(artifact),
-        .Version = std::move(version),
+        .Version  = std::move(version),
     };
 }
 
@@ -220,9 +220,9 @@ toolkit::result<kompose::MavenCoordinate> kompose::MavenDocumentPool::GetCoordin
 
     return MavenCoordinate
     {
-        .Group = std::move(group),
+        .Group    = std::move(group),
         .Artifact = std::move(artifact),
-        .Version = std::move(version),
+        .Version  = std::move(version),
     };
 }
 
@@ -285,9 +285,9 @@ toolkit::result<kompose::MavenCoordinate> kompose::MavenDocumentPool::GetCoordin
 
     return MavenCoordinate
     {
-        .Group = std::move(group),
-        .Artifact = std::move(artifact),
-        .Version = std::move(version),
+        .Group      = std::move(group),
+        .Artifact   = std::move(artifact),
+        .Version    = std::move(version),
         .Classifier = std::move(classifier),
     };
 }
@@ -326,8 +326,7 @@ std::filesystem::path kompose::MavenCoordinate::locate() const
 {
     std::filesystem::path path;
 
-    for (const auto segments = toolkit::split(Group, '.');
-         const auto &segment : segments)
+    for (const auto segments = toolkit::split(Group, '.'); const auto &segment : segments)
         path /= segment;
 
     path /= Artifact;
@@ -377,12 +376,11 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
             if (!std::filesystem::exists(remote_path))
                 continue;
 
-            if (std::error_code ec;
-                std::filesystem::copy_file(
-                    remote_path,
-                    local_path,
-                    std::filesystem::copy_options::overwrite_existing,
-                    ec), ec)
+            if (std::error_code ec; std::filesystem::copy_file(
+                                        remote_path,
+                                        local_path,
+                                        std::filesystem::copy_options::overwrite_existing,
+                                        ec), ec)
                 return toolkit::make_error(
                     "failed to copy file from '{}' to '{}': {} ({})",
                     remote_path.string(),
@@ -404,10 +402,10 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
 
         if (auto res = client.fetch_with_redirects(
             {
-                .method = http::method::get,
+                .method   = http::method::get,
                 .location = http::url::parse(remote_path.string()),
-                .headers = {},
-                .body = nullptr,
+                .headers  = {},
+                .body     = nullptr,
             },
             response); !res)
             return res;
