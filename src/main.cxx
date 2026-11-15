@@ -470,18 +470,36 @@ static void task_model(const kompose::Project &project)
     return {};
 }
 
-static const args::manifest manifest
+static const args::manifest &get_manifest()
 {
-    { .id = "project", .kind = args::entry_kind::value, .patterns = { "--project", "-p" } },
-    { .id = "fat", .kind = args::entry_kind::flag, .patterns = { "--fat", "-f" } },
-};
+    static const auto manifest = args::manifest::from(
+        {
+            args::entry
+            {
+                .id       = "project",
+                .kind     = args::entry_kind::value,
+                .patterns = { "--project", "-p" },
+            },
+            args::entry
+            {
+                .id       = "fat",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "--fat", "-f" },
+            },
+        });
+
+    if (manifest)
+        return *manifest;
+
+    throw std::runtime_error(manifest.error());
+}
 
 // kompose [(--<option>|-<o>)...] <[module:]task>... [-- <argument>...]
 
 [[nodiscard]] static toolkit::result<> run(int argc, const char *const *argv)
 {
     args::context context;
-    if (auto res = args::context::parse(manifest, { argv, static_cast<size_t>(argc) }) >> context; !res)
+    if (auto res = args::context::parse(get_manifest(), argc, argv) >> context; !res)
         return res;
 
     const auto project_directory = context.get("project");
