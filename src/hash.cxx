@@ -61,10 +61,10 @@ std::string &kompose::Hash::operator()(std::string &str) const
     std::ostringstream stream;
 
     stream
-            << std::hex
-            << std::setfill('0')
-            << std::setw(16)
-            << m_Hash;
+        << std::hex
+        << std::setfill('0')
+        << std::setw(16)
+        << m_Hash;
 
     return str = stream.str();
 }

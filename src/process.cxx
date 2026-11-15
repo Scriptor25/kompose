@@ -77,12 +77,12 @@ toolkit::result<> kompose::Process::operator()(
     {
         pollfd
         {
-            .fd = stdout_pipe[0],
+            .fd     = stdout_pipe[0],
             .events = POLLIN,
         },
         pollfd
         {
-            .fd = stderr_pipe[0],
+            .fd     = stderr_pipe[0],
             .events = POLLIN,
         },
     };
