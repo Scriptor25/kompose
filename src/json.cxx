@@ -8,7 +8,6 @@ void data::serializer<json::node, kompose::Project>::to_data(
     {
         { "id", value.Id },
         { "path", value.Path },
-        { "name", value.Name },
         { "repositories", value.Repositories },
         { "modules", value.Modules },
     };
@@ -23,7 +22,6 @@ void data::serializer<json::node, kompose::Module>::to_data(
     node = json::object
     {
         { "id", value.Id },
-        { "name", value.Name },
         { "path", std::filesystem::relative(value.Path, base) },
         { "source", std::filesystem::relative(value.Source, base) },
         { "build", std::filesystem::relative(value.Build, base) },
@@ -119,26 +117,6 @@ void data::serializer<json::node, kompose::Dependency>::to_data(
     };
 }
 
-void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
-    json::node &node,
-    const kompose::MavenCoordinate &value)
-{
-    node = json::object
-    {
-        { "group", value.Group },
-        { "artifact", value.Artifact },
-        { "version", value.Version },
-        { "classifier", value.Classifier },
-        {
-            "path",
-            "repository" / value.locate() / (value.Classifier
-                                                 ? value.get_filename(*value.Classifier, "jar")
-                                                 : value.get_filename("jar"))
-        },
-        { "sources", "repository" / value.locate() / value.get_filename("sources", "jar") },
-    };
-}
-
 void data::serializer<json::node, const kompose::SourceSet *>::to_data(
     json::node &node,
     const kompose::SourceSet *value)
@@ -151,6 +129,28 @@ void data::serializer<json::node, const kompose::Module *>::to_data(
     const kompose::Module *value)
 {
     node = json::string(value->Id);
+}
+
+void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
+    json::node &node,
+    const kompose::MavenCoordinate &value)
+{
+    const auto binary_filename = value.Classifier
+                                     ? value.get_filename(*value.Classifier, "jar")
+                                     : value.get_filename("jar");
+    const auto source_filename = value.get_filename("sources", "jar");
+
+    const auto repository_path = "repository" / value.locate();
+
+    node = json::object
+    {
+        { "group", value.Group },
+        { "artifact", value.Artifact },
+        { "version", value.Version },
+        { "classifier", value.Classifier },
+        { "path", repository_path / binary_filename },
+        { "sources", repository_path / source_filename },
+    };
 }
 
 void data::serializer<json::node, kompose::RepositoriesConfig>::to_data(

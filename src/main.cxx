@@ -17,18 +17,16 @@
 #include <iostream>
 #include <memory>
 #include <queue>
-#include <ranges>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 
-static const kompose::Module *module_by_name(const kompose::Project &project, const std::string &name)
+static const kompose::Module *module_by_id(const kompose::Project &project, const std::string &id)
 {
-    for (const auto &module : project.Modules | std::views::values)
-        if (module.Name == name)
-            return &module;
+    if (const auto it = project.Modules.find(id); it != project.Modules.end())
+        return &it->second;
 
-    std::cerr << "undefined module '" << name << "' in project." << std::endl;
+    std::cerr << "undefined module '" << id << "' in project." << std::endl;
     return nullptr;
 }
 
@@ -42,7 +40,6 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
         {
             .Id           = project_config.Id,
             .Path         = project_config.Path,
-            .Name         = project_config.Name.value_or(project_config.Id),
             .Repositories = project_config.Repositories,
         }
     );
@@ -59,14 +56,13 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
         module = {
             .Parent   = &project,
             .Id       = module_config.Id,
-            .Type     = module_config.Type,
-            .Name     = module_config.Name.value_or(module_config.Id),
             .Path     = module_config.Path,
+            .Type     = module_config.Type,
             .Source   = source,
             .Build    = build,
             .Artifact = {
                 .Group    = module_config.Artifact.Group.value_or(project_config.Artifact.Group.value_or("unknown")),
-                .Artifact = module_config.Artifact.Name.value_or(module_config.Name.value_or(module_config.Id)),
+                .Artifact = module_config.Artifact.Name.value_or(module_config.Id),
                 .Version  = module_config.Artifact.Version.value_or(project_config.Artifact.Version.value_or("0.0.0")),
             },
         };
@@ -118,8 +114,8 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
         {
             auto &source_set = module[source_set_id];
 
-            for (const auto &module_name : project_config.Dependencies.Common.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : project_config.Dependencies.Common.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -130,20 +126,20 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
                 source_set.Runtime.Maven.insert(coordinate);
             }
 
-            for (const auto &module_name : project_config.Dependencies.Compile.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : project_config.Dependencies.Compile.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : project_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
-            for (const auto &module_name : project_config.Dependencies.Runtime.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : project_config.Dependencies.Runtime.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : project_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
 
-            for (const auto &module_name : module_config.Dependencies.Common.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : module_config.Dependencies.Common.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -154,20 +150,20 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
                 source_set.Runtime.Maven.insert(coordinate);
             }
 
-            for (const auto &module_name : module_config.Dependencies.Compile.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : module_config.Dependencies.Compile.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : module_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
-            for (const auto &module_name : module_config.Dependencies.Runtime.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : module_config.Dependencies.Runtime.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : module_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
 
-            for (const auto &module_name : source_set_config.Dependencies.Common.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : source_set_config.Dependencies.Common.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                 {
                     source_set.Compile.Modules.insert(dependency);
                     source_set.Runtime.Modules.insert(dependency);
@@ -178,14 +174,14 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
                 source_set.Runtime.Maven.insert(coordinate);
             }
 
-            for (const auto &module_name : source_set_config.Dependencies.Compile.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : source_set_config.Dependencies.Compile.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Compile.Modules.insert(dependency);
             for (const auto &coordinate : source_set_config.Dependencies.Compile.Maven)
                 source_set.Compile.Maven.insert(coordinate);
 
-            for (const auto &module_name : source_set_config.Dependencies.Runtime.Modules)
-                if (auto dependency = module_by_name(project, module_name))
+            for (const auto &module_id : source_set_config.Dependencies.Runtime.Modules)
+                if (const auto *dependency = module_by_id(project, module_id))
                     source_set.Runtime.Modules.insert(dependency);
             for (const auto &coordinate : source_set_config.Dependencies.Runtime.Maven)
                 source_set.Runtime.Maven.insert(coordinate);
@@ -256,10 +252,8 @@ static const kompose::Module *module_by_name(const kompose::Project &project, co
                         << "undefined source set '"
                         << id
                         << "' in module '"
-                        << module.Name
-                        << "' ("
                         << module.Id
-                        << ")."
+                        << "."
                         << std::endl;
                     continue;
                 }

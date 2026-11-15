@@ -155,8 +155,6 @@ namespace kompose
         std::string Id;
         std::filesystem::path Path;
 
-        std::optional<std::string> Name;
-
         ProjectArtifactConfig Artifact;
 
         ModulesConfig Modules;
@@ -197,7 +195,6 @@ namespace kompose
         std::filesystem::path Path;
 
         ModuleType Type;
-        std::optional<std::string> Name;
 
         ArtifactConfig Artifact;
 

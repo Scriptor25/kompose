@@ -117,8 +117,6 @@ bool data::serializer<toml::node, kompose::ProjectConfig>::from_data(
 
     auto ok = true;
 
-    ok &= node["name"] >> value.Name;
-
     ok &= artifact["group"] >> value.Artifact.Group;
     ok &= artifact["version"] >> value.Artifact.Version;
 
@@ -151,8 +149,6 @@ bool data::serializer<toml::node, kompose::ModuleConfig>::from_data(
     auto &sources = node["sources"];
 
     auto ok = true;
-
-    ok &= node["name"] >> value.Name;
 
     ok &= artifact["group"] >> value.Artifact.Group;
     ok &= artifact["name"] >> value.Artifact.Name;
