@@ -1,7 +1,5 @@
 # required!
 type = "library"
-# default: directory name
-name = "lib"
 
 [artifact]
 # default: inherited from project
@@ -29,8 +27,5 @@ runtime.maven = []
 [sources.main]
 
 [library]
-# package type; default: jar
-package = "jar"
 # generate source package; default: false
 sources = true
-include = ["main"]

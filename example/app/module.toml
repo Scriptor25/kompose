@@ -1,7 +1,5 @@
 # required!
 type = "application"
-# default: directory name
-name = "app"
 
 [artifact]
 # default: inherited from project
@@ -23,4 +21,3 @@ maven = ["org.jetbrains.kotlin:kotlin-stdlib:2.4.20"]
 [application]
 # required!
 main = "dev.scriptor.example.app.MainKt"
-include = ["main"]
