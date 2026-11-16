@@ -547,7 +547,6 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
     {
     case MavenResolveScope::Compile:
         scopes = MavenDependencyScope::Compile
-                 | MavenDependencyScope::Provided
                  | MavenDependencyScope::System;
         break;
     case MavenResolveScope::Runtime:
