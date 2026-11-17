@@ -15,6 +15,8 @@ add_subdirectory(deps/toolkit)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(OpenSSL REQUIRED)
+
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(kompose ${SRC})
 
@@ -27,7 +29,7 @@ target_link_libraries(kompose PRIVATE
         toolkit::json
         toolkit::toml
         toolkit::xml
-        ssl
+        OpenSSL::SSL
 )
 
 install(TARGETS kompose)
