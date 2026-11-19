@@ -26,7 +26,6 @@ toolkit::result<> kompose::launch(
         const auto *mod = queue.front();
         module_dependencies.insert(mod);
 
-        // TODO: test
         for (const auto *source_set : mod->GetSourceSets(false))
         {
             for (const auto *dependency : source_set->Compile.Modules)
@@ -44,11 +43,11 @@ toolkit::result<> kompose::launch(
     std::unordered_set<std::filesystem::path> class_path;
 
     for (const auto *dependency : module_dependencies)
-        // TODO: test
         for (const auto *source_set : dependency->GetSourceSets(false))
         {
             auto classes_directory = source_set->Build / "classes";
-            class_path.insert(classes_directory);
+            if (std::filesystem::exists(classes_directory))
+                class_path.insert(classes_directory);
 
             auto resources_directory = source_set->Source / "resources";
             if (std::filesystem::exists(resources_directory))
@@ -57,7 +56,8 @@ toolkit::result<> kompose::launch(
             for (const auto *include : source_set->Include)
             {
                 auto include_classes_directory = include->Build / "classes";
-                class_path.insert(include_classes_directory);
+                if (std::filesystem::exists(include_classes_directory))
+                    class_path.insert(include_classes_directory);
 
                 auto include_resources_directory = include->Source / "resources";
                 if (std::filesystem::exists(include_resources_directory))
@@ -71,16 +71,17 @@ toolkit::result<> kompose::launch(
                            project,
                            client,
                            MavenResolveScope::Runtime,
-                           maven_dependencies) >> paths; !res)
+                           maven_dependencies
+                       ) >> paths; !res)
             return res;
 
         class_path.insert(paths.begin(), paths.end());
     }
 
     // TODO: instead of finding common platform, select included source sets by platform
+    // TODO: also only select one source set; if multiple are found, error out
 
     KotlinCompilerPlatform platform{};
-    // TODO: test
     for (const auto *source_set : module.GetSourceSets(false))
     {
         if (platform == KotlinCompilerPlatform::None)
@@ -101,7 +102,6 @@ toolkit::result<> kompose::launch(
         std::optional<bool> enable_preview;
         std::unordered_set<std::string> add_modules;
 
-        // TODO: test
         for (const auto *source_set : module.GetSourceSets(false))
         {
             const auto &compiler_data = std::get<JvmCompilerConfigData>(source_set->Compiler.Data);

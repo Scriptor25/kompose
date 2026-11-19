@@ -1,10 +1,9 @@
-#include <fstream>
 #include <kompose.hxx>
 #include <process.hxx>
 
+#include <fstream>
 #include <iostream>
 #include <queue>
-#include <sstream>
 
 [[nodiscard]] static toolkit::result<> package_jar(
     const std::filesystem::path &args_file,

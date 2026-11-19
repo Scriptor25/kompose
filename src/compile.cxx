@@ -13,10 +13,15 @@ toolkit::result<> kompose::compile(
     const auto destination_path = source_set.Build / "classes";
     const auto fingerprint_path = source_set.Build / "fingerprint";
 
+    const auto kotlin_directory = source_set.Source / "kotlin";
+
+    if (!std::filesystem::exists(kotlin_directory) || std::filesystem::is_empty(kotlin_directory))
+        return {};
+
     Hash hash;
 
     std::unordered_set<std::string> sources;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(source_set.Source / "kotlin"))
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(kotlin_directory))
     {
         if (entry.is_directory())
             continue;
@@ -39,10 +44,10 @@ toolkit::result<> kompose::compile(
         auto count = stream.tellg();
         stream.seekg(0, std::ios::beg);
 
-        std::vector<char> buffer(count);
+        std::string buffer(count, '\0');
         stream.read(buffer.data(), count);
 
-        target_fingerprint = { buffer.begin(), buffer.end() };
+        target_fingerprint = std::move(buffer);
     }
 
     if (!std::filesystem::exists(destination_path))
@@ -55,7 +60,6 @@ toolkit::result<> kompose::compile(
 
     std::unordered_set<std::filesystem::path> class_path;
     for (const auto *dependency : source_set.Compile.Modules)
-        // TODO: test
         for (const auto source_sets = dependency->GetSourceSets(false); const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
 
@@ -64,15 +68,22 @@ toolkit::result<> kompose::compile(
 
     {
         std::unordered_set<std::filesystem::path> paths;
-        if (auto res = resolve(project, client, MavenResolveScope::Compile, source_set.Compile.Maven) >> paths; !res)
+        if (auto res = resolve(
+                           project,
+                           client,
+                           MavenResolveScope::Compile,
+                           source_set.Compile.Maven
+                       ) >> paths; !res)
             return res;
 
-        for (const auto &path : paths)
-            class_path.insert(path);
+        class_path.insert(paths.begin(), paths.end());
     }
 
     for (const auto &path : class_path)
     {
+        if (!std::filesystem::exists(path))
+            continue;
+
         if (std::filesystem::is_directory(path))
         {
             for (const auto &entry : std::filesystem::recursive_directory_iterator(path))
@@ -83,27 +94,25 @@ toolkit::result<> kompose::compile(
                 std::ifstream stream(entry.path(), std::ios::binary);
                 hash.Push(stream);
             }
+            continue;
         }
-        else
-        {
-            std::ifstream stream(path, std::ios::binary);
-            hash.Push(stream);
-        }
+
+        std::ifstream stream(path, std::ios::binary);
+        hash.Push(stream);
     }
 
     KotlinCommand command
     {
-        .Input = std::move(sources),
+        .Input           = std::move(sources),
+        .ApiVersion      = source_set.Compiler.Common.ApiVersion,
+        .KotlinHome      = source_set.Compiler.Common.KotlinHome,
+        .LanguageVersion = source_set.Compiler.Common.LanguageVersion,
+        .OptIn           = source_set.Compiler.Common.OptIn,
+        .PluginOptions   = source_set.Compiler.Common.PluginOptions,
+        .Progressive     = source_set.Compiler.Common.Progressive.value_or(false),
     };
 
-    command.ApiVersion = source_set.Compiler.Common.ApiVersion;
-    command.KotlinHome = source_set.Compiler.Common.KotlinHome;
-    command.LanguageVersion = source_set.Compiler.Common.LanguageVersion;
-    command.OptIn = source_set.Compiler.Common.OptIn;
-    command.PluginOptions = source_set.Compiler.Common.PluginOptions;
-    command.Progressive = source_set.Compiler.Common.Progressive.value_or(false);
-
-    command.InsertExtra(source_set.Compiler.Common.Extra);
+    command.PushExtra(source_set.Compiler.Common.Extra);
 
     switch (source_set.Compiler.Platform)
     {
@@ -139,7 +148,7 @@ toolkit::result<> kompose::compile(
         if (data.EnablePreview)
             command.JvmEnablePreview = *data.EnablePreview;
 
-        command.InsertExtra(data.Extra);
+        command.PushExtra(data.Extra);
         break;
     }
     case KotlinCompilerPlatform::Js:

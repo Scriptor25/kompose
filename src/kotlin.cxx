@@ -512,7 +512,7 @@ kompose::Process kompose::KotlinCommand::Build() const
     return { .Args = std::move(args) };
 }
 
-void kompose::KotlinCommand::InsertExtra(std::span<const std::string> extra)
+void kompose::KotlinCommand::PushExtra(std::span<const std::string> extra)
 {
     Extra.insert(Extra.end(), extra.begin(), extra.end());
 }

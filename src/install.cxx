@@ -9,7 +9,6 @@ toolkit::result<> kompose::install(
     const Module &module,
     const http::client &client)
 {
-    // TODO: add classifier to filename classifier
     const auto binary_bundle_filename = module.Artifact.get_filename("jar");
     const auto sources_bundle_filename = module.Artifact.get_filename("sources", "jar");
 

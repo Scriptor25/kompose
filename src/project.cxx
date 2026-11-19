@@ -1,4 +1,5 @@
 #include <project.hxx>
+
 #include <ranges>
 
 kompose::SourceSet &kompose::Module::operator[](const std::string &name)

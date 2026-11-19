@@ -105,7 +105,7 @@ namespace kompose
     {
         Process Build() const;
 
-        void InsertExtra(std::span<const std::string> extra);
+        void PushExtra(std::span<const std::string> extra);
 
         std::unordered_set<std::string> Input;
 

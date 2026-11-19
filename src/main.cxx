@@ -68,13 +68,16 @@ static const kompose::Module *module_by_id(const kompose::Project &project, cons
         };
 
         for (const auto &[source_set_id, source_set_config] : module_config.SourceSets)
-            module.SourceSets[source_set_id] = {
-                .Parent = &module,
-                .Id     = source_set_id,
-                .Source = source / source_set_id,
-                .Build  = build / source_set_id,
-                .Test   = source_set_config.Test,
-            };
+            module.SourceSets.emplace(
+                source_set_id,
+                kompose::SourceSet
+                {
+                    .Parent = &module,
+                    .Id     = source_set_id,
+                    .Source = source / source_set_id,
+                    .Build  = build / source_set_id,
+                    .Test   = source_set_config.Test,
+                });
 
         switch (module_config.Type)
         {
@@ -82,12 +85,10 @@ static const kompose::Module *module_by_id(const kompose::Project &project, cons
         {
             const auto &module_data = std::get<kompose::ApplicationModuleConfigData>(module_config.Data);
 
-            kompose::ApplicationModuleData data
+            module.Data = kompose::ApplicationModuleData
             {
                 .Main = module_data.Main,
             };
-
-            module.Data = std::move(data);
             break;
         }
 
@@ -95,12 +96,10 @@ static const kompose::Module *module_by_id(const kompose::Project &project, cons
         {
             const auto &module_data = std::get<kompose::LibraryModuleConfigData>(module_config.Data);
 
-            kompose::LibraryModuleData data
+            module.Data = kompose::LibraryModuleData
             {
                 .IncludeSources = module_data.IncludeSources,
             };
-
-            module.Data = std::move(data);
             break;
         }
         }
@@ -190,14 +189,16 @@ static const kompose::Module *module_by_id(const kompose::Project &project, cons
                                project,
                                client,
                                kompose::MavenResolveScope::ResolveCompile,
-                               source_set.Compile.Maven) >> source_set.Compile.Tree; !res)
+                               source_set.Compile.Maven
+                           ) >> source_set.Compile.Tree; !res)
                 return res;
 
             if (auto res = kompose::resolve_tree(
                                project,
                                client,
                                kompose::MavenResolveScope::ResolveRuntime,
-                               source_set.Runtime.Maven) >> source_set.Runtime.Tree; !res)
+                               source_set.Runtime.Maven
+                           ) >> source_set.Runtime.Tree; !res)
                 return res;
 
             source_set.Compiler.Platform = source_set_config.CompilerConfig.Platform;
@@ -343,7 +344,6 @@ static void task_model(const kompose::Project &project)
             std::cerr << " [" << tag << "]";
         std::cerr << std::endl;
 
-        // TODO: test
         for (const auto source_sets = module->GetSourceSets(true); const auto *source_set : source_sets)
         {
             switch (scope)
@@ -402,7 +402,6 @@ static void task_model(const kompose::Project &project)
     {
         std::cerr << "> " << module->Id << ":compile" << std::endl;
 
-        // TODO: test
         for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
             if (auto res = kompose::compile(project, *module, *source_set, client); !res)
                 return res;
@@ -662,7 +661,6 @@ static const args::manifest &get_manifest()
             const auto *module = queue.front();
             modules_with_dependencies.insert(module);
 
-            // TODO: test
             for (const auto source_sets = module->GetSourceSets(false); const auto *source_set : source_sets)
                 for (const auto *dependency : source_set->Compile.Modules)
                     queue.push(dependency);
