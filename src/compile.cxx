@@ -105,6 +105,8 @@ toolkit::result<> kompose::compile(
     const auto &kotlin_version = source_set.Compiler.Common.KotlinVersion;
 
     std::vector<std::string> executable;
+    bool no_stdlib{};
+
     if (kotlin_home)
         executable.push_back(std::filesystem::path(*kotlin_home) / "bin" / "kotlinc");
     else if (kotlin_version)
@@ -139,8 +141,8 @@ toolkit::result<> kompose::compile(
         executable.emplace_back("--class-path");
         executable.push_back(std::move(compiler_class_path_string));
         executable.emplace_back("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler");
-        executable.emplace_back("-no-stdlib");
-        executable.emplace_back("-no-reflect");
+
+        no_stdlib = true;
     }
     else
         executable.emplace_back("kotlinc");
@@ -183,7 +185,9 @@ toolkit::result<> kompose::compile(
             command.JvmNoJdk = *data.NoJdk;
         if (data.NoReflect)
             command.JvmNoReflect = *data.NoReflect;
-        if (data.NoStdlib)
+        if (no_stdlib)
+            command.JvmNoStdlib = no_stdlib;
+        else if (data.NoStdlib)
             command.JvmNoStdlib = *data.NoStdlib;
         command.JvmScriptTemplates = data.ScriptTemplates;
         command.JvmAddModules = data.AddModules;
