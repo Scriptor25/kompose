@@ -101,6 +101,7 @@ toolkit::result<> kompose::launch(
         std::optional<std::string> jdk_home;
         std::optional<bool> enable_preview;
         std::unordered_set<std::string> add_modules;
+        std::vector<std::string> java_extra;
 
         for (const auto *source_set : module.GetSourceSets(false))
         {
@@ -123,6 +124,8 @@ toolkit::result<> kompose::launch(
             }
 
             add_modules.insert(compiler_data.AddModules.begin(), compiler_data.AddModules.end());
+
+            java_extra.insert(java_extra.end(), compiler_data.JavaExtra.begin(), compiler_data.JavaExtra.end());
         }
 
         auto java = jdk_home ? (std::filesystem::path(*jdk_home) / "bin" / "java").string() : "java";
@@ -160,6 +163,8 @@ toolkit::result<> kompose::launch(
             }
             args.push_back(std::move(str));
         }
+
+        args.insert(args.end(), java_extra.begin(), java_extra.end());
 
         args.push_back(main_class);
 

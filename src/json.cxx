@@ -211,6 +211,7 @@ void data::serializer<json::node, kompose::JvmCompilerConfigData>::to_data(
         { "nullability_annotations", value.NullabilityAnnotations },
         { "enable_preview", value.EnablePreview.value_or(false) },
         { "extra", value.Extra },
+        { "java_extra", value.JavaExtra }
     };
 }
 

@@ -58,6 +58,7 @@ namespace kompose
         std::optional<bool> EnablePreview;
 
         std::vector<std::string> Extra;
+        std::vector<std::string> JavaExtra;
     };
 
     struct JsCompilerConfigData

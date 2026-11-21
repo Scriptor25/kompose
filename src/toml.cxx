@@ -368,6 +368,7 @@ bool data::serializer<toml::node, kompose::JvmCompilerConfigData>::from_data(
     ok &= from_data_opt(node["nullabilityAnnotations"], value.NullabilityAnnotations);
 
     ok &= from_data_opt(node["extra"], value.Extra);
+    ok &= from_data_opt(node["javaExtra"], value.JavaExtra);
 
     return ok;
 }
