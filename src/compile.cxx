@@ -101,11 +101,56 @@ toolkit::result<> kompose::compile(
         hash.Push(stream);
     }
 
+    const auto &kotlin_home = source_set.Compiler.Common.KotlinHome;
+    const auto &kotlin_version = source_set.Compiler.Common.KotlinVersion;
+
+    std::vector<std::string> executable;
+    if (kotlin_home)
+        executable.push_back(std::filesystem::path(*kotlin_home) / "bin" / "kotlinc");
+    else if (kotlin_version)
+    {
+        const MavenCoordinate coordinate
+        {
+            .Group    = "org.jetbrains.kotlin",
+            .Artifact = "kotlin-compiler-embeddable",
+            .Version  = *kotlin_version,
+        };
+
+        std::unordered_set<std::filesystem::path> compiler_class_path;
+        if (auto res = resolve(
+                           project,
+                           client,
+                           MavenResolveScope::Runtime,
+                           { coordinate }
+                       ) >> compiler_class_path; !res)
+            return res;
+
+        std::string compiler_class_path_string;
+        for (auto it = compiler_class_path.begin(); it != compiler_class_path.end(); ++it)
+        {
+            if (it != compiler_class_path.begin())
+                compiler_class_path_string += ':';
+            compiler_class_path_string += it->string();
+        }
+
+        executable.emplace_back("java");
+        executable.emplace_back("--enable-native-access=ALL-UNNAMED");
+        executable.emplace_back("--sun-misc-unsafe-memory-access=allow");
+        executable.emplace_back("--class-path");
+        executable.push_back(std::move(compiler_class_path_string));
+        executable.emplace_back("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler");
+        executable.emplace_back("-no-stdlib");
+        executable.emplace_back("-no-reflect");
+    }
+    else
+        executable.emplace_back("kotlinc");
+
     KotlinCommand command
     {
+        .Executable      = std::move(executable),
         .Input           = std::move(sources),
         .ApiVersion      = source_set.Compiler.Common.ApiVersion,
-        .KotlinHome      = source_set.Compiler.Common.KotlinHome,
+        .KotlinHome      = kotlin_home,
         .LanguageVersion = source_set.Compiler.Common.LanguageVersion,
         .OptIn           = source_set.Compiler.Common.OptIn,
         .PluginOptions   = source_set.Compiler.Common.PluginOptions,

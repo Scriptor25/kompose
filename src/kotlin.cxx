@@ -4,7 +4,7 @@
 kompose::Process kompose::KotlinCommand::Build() const
 {
     std::vector<std::string> args;
-    args.emplace_back("kotlinc");
+    args.insert(args.end(), Executable.begin(), Executable.end());
 
 #pragma region Common
 

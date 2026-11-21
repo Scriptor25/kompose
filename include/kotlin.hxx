@@ -107,6 +107,8 @@ namespace kompose
 
         void PushExtra(std::span<const std::string> extra);
 
+        std::vector<std::string> Executable;
+
         std::unordered_set<std::string> Input;
 
         std::vector<std::string> Extra;

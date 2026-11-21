@@ -181,6 +181,7 @@ void data::serializer<json::node, kompose::CommonCompilerConfigData>::to_data(
     node = json::object
     {
         { "kotlin_home", value.KotlinHome },
+        { "kotlin_version", value.KotlinVersion },
         { "api_version", value.ApiVersion },
         { "language_version", value.LanguageVersion },
         { "opt_in", value.OptIn },

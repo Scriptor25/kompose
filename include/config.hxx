@@ -27,6 +27,7 @@ namespace kompose
         void Merge(const CommonCompilerConfigData &data);
 
         std::optional<std::string> KotlinHome;
+        std::optional<std::string> KotlinVersion;
 
         std::optional<std::string> ApiVersion;
         std::optional<std::string> LanguageVersion;

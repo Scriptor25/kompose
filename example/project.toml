@@ -13,3 +13,6 @@ maven = [
     "local",
     "https://repo1.maven.org/maven2/",
 ]
+
+[compiler.common]
+kotlinVersion = "2.4.21"
