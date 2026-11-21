@@ -168,8 +168,7 @@ toolkit::result<> kompose::launch(
 
         args.push_back(main_class);
 
-        for (const auto &arg : program_args)
-            args.emplace_back(arg);
+        args.insert(args.end(), program_args.begin(), program_args.end());
 
         return Process(std::move(args))(std::cout, std::cerr);
     }

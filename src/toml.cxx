@@ -44,6 +44,7 @@ void kompose::JvmCompilerConfigData::Merge(const JvmCompilerConfigData &data)
     if (!EnablePreview)
         EnablePreview = data.EnablePreview;
     Extra.insert(Extra.end(), data.Extra.begin(), data.Extra.end());
+    JavaExtra.insert(JavaExtra.end(), data.JavaExtra.begin(), data.JavaExtra.end());
 }
 
 void kompose::JsCompilerConfigData::Merge(const JsCompilerConfigData &data)
