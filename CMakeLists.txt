@@ -54,4 +54,40 @@ target_link_libraries(kompose PRIVATE
         OpenSSL::SSL
 )
 
-install(TARGETS kompose)
+if (WIN32)
+    install(TARGETS kompose
+            RUNTIME_DEPENDENCIES
+            PRE_EXCLUDE_REGEXES
+            "api-ms-*"
+            "ext-ms-*"
+            POST_EXCLUDE_REGEXES
+            ".*system32/.*"
+            ".*System32/.*"
+            RUNTIME DESTINATION bin
+    )
+elseif (APPLE)
+    install(TARGETS kompose
+            RUNTIME_DEPENDENCIES
+            FRAMEWORK DESTINATION lib
+    )
+elseif (UNIX)
+    install(TARGETS kompose)
+endif ()
+
+set(CPACK_PACKAGE_VENDOR "Scriptor25")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_TITLE}")
+set(CPACK_PACKAGE_VERSION "${KOMPOSE_PROJECT_VERSION}")
+
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+
+if (WIN32)
+    string(APPEND CPACK_GENERATOR ";ZIP;INNOSETUP")
+    string(APPEND CPACK_SOURCE_GENERATOR ";ZIP")
+elseif (APPLE)
+    string(APPEND CPACK_GENERATOR ";STGZ")
+elseif (UNIX)
+    string(APPEND CPACK_GENERATOR ";STGZ;RPM")
+endif ()
+
+include(CPack)
