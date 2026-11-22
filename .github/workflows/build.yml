@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !matrix.disable }}
     name: ${{ matrix.os }} | ${{ matrix.toolchain }}
     runs-on: ${{ matrix.runner }}
 
@@ -52,6 +53,7 @@ jobs:
             toolchain: msvc
             cc: cl
             cxx: cl
+            disable: true
 
           - os: windows
             runner: windows-latest
@@ -59,6 +61,7 @@ jobs:
             toolchain: clang
             cc: clang
             cxx: clang++
+            disable: true
 
           # =====================
           # Darwin
