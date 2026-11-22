@@ -2,6 +2,7 @@
 #include <kompose.hxx>
 #include <maven.hxx>
 #include <project.hxx>
+#include <version.hxx>
 
 #include <args/args.hxx>
 
@@ -280,7 +281,10 @@ static void task_version()
 {
     std::cerr << "> :version" << std::endl;
 
-    std::cout << "0.0.0" << std::endl;
+    std::cout << PROJECT_NAME << " - " << PROJECT_TITLE << std::endl;
+    std::cout << std::endl;
+    std::cout << " Version: " << PROJECT_VERSION << std::endl;
+    std::cout << " Build date: " << PROJECT_BUILD_DATE << std::endl;
 }
 
 static void task_help()

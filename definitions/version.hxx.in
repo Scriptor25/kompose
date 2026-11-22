@@ -1,0 +1,6 @@
+#pragma once
+
+constexpr const char *PROJECT_NAME = "@PROJECT_NAME@"
+constexpr const char *PROJECT_TITLE = "@PROJECT_TITLE@"
+constexpr const char *PROJECT_VERSION = "@KOMPOSE_PROJECT_VERSION@"
+constexpr const char *PROJECT_BUILD_DATE = "@PROJECT_BUILD_DATE@"
