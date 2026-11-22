@@ -46,21 +46,19 @@ jobs:
           # =====================
           # Windows
           # =====================
-          - os: windows
-            runner: windows-latest
-            triplet: x64-windows
-            toolchain: msvc
-            cc: cl
-            cxx: cl
-            disable: true
-
-          - os: windows
-            runner: windows-latest
-            triplet: x64-windows
-            toolchain: clang
-            cc: clang
-            cxx: clang++
-            disable: true
+          # - os: windows
+          #   runner: windows-latest
+          #   triplet: x64-windows
+          #   toolchain: msvc
+          #   cc: cl
+          #   cxx: cl
+          #
+          # - os: windows
+          #   runner: windows-latest
+          #   triplet: x64-windows
+          #   toolchain: clang
+          #   cc: clang
+          #   cxx: clang++
 
           # =====================
           # Darwin
@@ -81,8 +79,6 @@ jobs:
 
     env:
       EXE_SUFFIX: ${{ matrix.os == 'windows' && '.exe' || '' }}
-
-    if: ${{ !matrix.disable }}
 
     steps:
       - name: Checkout
