@@ -507,27 +507,55 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     const Project &project,
     const http::client &client,
     const MavenResolveScope scope,
-    const std::unordered_set<MavenCoordinate> &coordinates)
+    const std::unordered_set<MavenCoordinate> &coordinates,
+    bool sources,
+    const std::function<void (std::size_t, std::size_t)> &progress)
 {
     std::unordered_set<MavenCoordinate> tree;
-    if (auto res = resolve_tree(project, client, scope, coordinates) >> tree; !res)
+    if (auto res = resolve_tree(
+                       project,
+                       client,
+                       scope,
+                       coordinates,
+                       progress
+                   ) >> tree; !res)
         return res;
 
     std::unordered_set<std::filesystem::path> paths;
+
+    if (progress)
+        progress(paths.size(), tree.size());
+
     for (const auto &coordinate : tree)
     {
         std::filesystem::path local_path;
-        if (auto res = coordinate.resolve_file(project, client, true, "jar") >> local_path; !res)
+        if (auto res = coordinate.resolve_file(
+                           project,
+                           client,
+                           true,
+                           "jar"
+                       ) >> local_path; !res)
             return res;
 
         paths.insert(local_path);
 
-        bool resolved;
-        if (auto res = coordinate.resolve_file(project, client, "sources", "jar", &resolved) >> local_path; !res)
-            return res;
+        if (sources)
+        {
+            bool resolved;
+            if (auto res = coordinate.resolve_file(
+                               project,
+                               client,
+                               "sources",
+                               "jar",
+                               &resolved
+                           ) >> local_path; !res)
+                return res;
 
-        (void) resolved;
-        (void) local_path;
+            (void) resolved;
+        }
+
+        if (progress)
+            progress(paths.size(), tree.size());
     }
 
     return paths;
@@ -537,7 +565,8 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
     const Project &project,
     const http::client &client,
     MavenResolveScope scope,
-    const std::unordered_set<MavenCoordinate> &coordinates)
+    const std::unordered_set<MavenCoordinate> &coordinates,
+    const std::function<void (std::size_t, std::size_t)> &progress)
 {
     if (coordinates.empty())
         return {};
@@ -574,6 +603,7 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
         for (const auto &coordinate : coordinates)
             queue.push(coordinate);
 
+        std::size_t i = 0;
         for (; !queue.empty(); queue.pop())
         {
             const auto &coordinate = queue.front();
@@ -584,6 +614,9 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
             MavenDocument document;
             if (auto res = coordinate.resolve_pom(project, client) >> document; !res)
                 return res;
+
+            if (progress && coordinates.contains(coordinate))
+                progress(++i, coordinates.size());
 
             pool.Documents.push_back(std::move(document));
 

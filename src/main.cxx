@@ -321,6 +321,7 @@ static void task_model(const kompose::Project &project)
     const kompose::Project &project,
     const std::unordered_set<const kompose::Module *> &modules,
     const kompose::MavenResolveScope scope,
+    const bool sources,
     const http::client &client)
 {
     std::unordered_set<kompose::MavenCoordinate> coordinates;
@@ -371,7 +372,22 @@ static void task_model(const kompose::Project &project)
     if (coordinates.empty())
         return {};
 
-    return kompose::resolve(project, client, scope, coordinates);
+    auto progress = [](
+        const std::size_t p,
+        const std::size_t total)
+    {
+        std::cout << std::format("{:4} / {:4}", p, total) << std::endl;
+    };
+
+    std::unordered_set<std::filesystem::path> paths;
+    return kompose::resolve(
+               project,
+               client,
+               scope,
+               coordinates,
+               sources,
+               progress
+           ) >> paths;
 }
 
 [[nodiscard]] static toolkit::result<> task_clean(const std::unordered_set<const kompose::Module *> &modules)
@@ -748,7 +764,9 @@ static const args::manifest &get_manifest()
         *project,
         resolve_modules,
         kompose::MavenResolveScope::ResolveAll,
-        client); !res)
+        true,
+        client
+    ); !res)
         return res;
 
     std::unordered_set<const kompose::Module *> resolve_compile_modules;
@@ -759,7 +777,9 @@ static const args::manifest &get_manifest()
         *project,
         resolve_compile_modules,
         kompose::MavenResolveScope::ResolveCompile,
-        client); !res)
+        false,
+        client
+    ); !res)
         return res;
 
     std::unordered_set<const kompose::Module *> resolve_runtime_modules;
@@ -770,7 +790,9 @@ static const args::manifest &get_manifest()
         *project,
         resolve_runtime_modules,
         kompose::MavenResolveScope::ResolveRuntime,
-        client); !res)
+        false,
+        client
+    ); !res)
         return res;
 
     if (auto res = task_clean(clean_modules); !res)
