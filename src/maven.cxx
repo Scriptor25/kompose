@@ -508,7 +508,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
     const http::client &client,
     const MavenResolveScope scope,
     const std::unordered_set<MavenCoordinate> &coordinates,
-    bool sources,
+    const bool with_sources,
     const std::function<void (std::size_t, std::size_t)> &progress)
 {
     std::unordered_set<MavenCoordinate> tree;
@@ -539,7 +539,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
 
         paths.insert(local_path);
 
-        if (sources)
+        if (with_sources)
         {
             bool resolved;
             if (auto res = coordinate.resolve_file(

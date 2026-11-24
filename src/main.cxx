@@ -321,7 +321,8 @@ static void task_model(const kompose::Project &project)
     const kompose::Project &project,
     const std::unordered_set<const kompose::Module *> &modules,
     const kompose::MavenResolveScope scope,
-    const bool sources,
+    const bool with_sources,
+    const bool with_progress,
     const http::client &client)
 {
     std::unordered_set<kompose::MavenCoordinate> coordinates;
@@ -372,21 +373,32 @@ static void task_model(const kompose::Project &project)
     if (coordinates.empty())
         return {};
 
-    auto progress = [](
-        const std::size_t p,
-        const std::size_t total)
-    {
-        std::cout << std::format("{:4} / {:4}", p, total) << std::endl;
-    };
-
     std::unordered_set<std::filesystem::path> paths;
+    if (with_progress)
+    {
+        auto progress = [](
+            const std::size_t p,
+            const std::size_t total)
+        {
+            std::cout << std::format("{:4} / {:4}", p, total) << std::endl;
+        };
+
+        return kompose::resolve(
+                   project,
+                   client,
+                   scope,
+                   coordinates,
+                   with_sources,
+                   progress
+               ) >> paths;
+    }
+
     return kompose::resolve(
                project,
                client,
                scope,
                coordinates,
-               sources,
-               progress
+               with_sources
            ) >> paths;
 }
 
@@ -499,6 +511,11 @@ static const args::manifest &get_manifest()
                 .kind     = args::entry_kind::flag,
                 .patterns = { "--fat", "-f" },
             },
+            {
+                .id       = "progress",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "--progress", "-r" },
+            }
         });
 
     if (manifest)
@@ -517,6 +534,7 @@ static const args::manifest &get_manifest()
 
     const auto project_directory = context.get("project");
     const auto fat = context.is("fat");
+    const auto progress = context.is("progress");
 
     std::unordered_set<std::string_view> task_strings;
     const auto task_count = context.limited() ? context.limit() : context.size();
@@ -765,6 +783,7 @@ static const args::manifest &get_manifest()
         resolve_modules,
         kompose::MavenResolveScope::ResolveAll,
         true,
+        progress,
         client
     ); !res)
         return res;
@@ -778,6 +797,7 @@ static const args::manifest &get_manifest()
         resolve_compile_modules,
         kompose::MavenResolveScope::ResolveCompile,
         false,
+        progress,
         client
     ); !res)
         return res;
@@ -791,6 +811,7 @@ static const args::manifest &get_manifest()
         resolve_runtime_modules,
         kompose::MavenResolveScope::ResolveRuntime,
         false,
+        progress,
         client
     ); !res)
         return res;
