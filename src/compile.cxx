@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <queue>
 
 toolkit::result<> kompose::compile(
     const Project &project,
@@ -13,28 +14,41 @@ toolkit::result<> kompose::compile(
     const auto destination_path = source_set.Build / "classes";
     const auto fingerprint_path = source_set.Build / "fingerprint";
 
-    const auto kotlin_directory = source_set.Source / "kotlin";
-
-    if (!std::filesystem::exists(kotlin_directory) || std::filesystem::is_empty(kotlin_directory))
-        return {};
-
+    std::unordered_set<std::string> sources;
     Hash hash;
 
-    std::unordered_set<std::string> sources;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(kotlin_directory))
+    std::queue<const SourceSet *> queue;
+    queue.push(&source_set);
+    for (; !queue.empty(); queue.pop())
     {
-        if (entry.is_directory())
+        const auto *next = queue.front();
+
+        const auto kotlin_directory = next->Source / "kotlin";
+
+        if (!std::filesystem::exists(kotlin_directory) || std::filesystem::is_empty(kotlin_directory))
             continue;
 
-        const auto &path = entry.path();
-        if (!path.has_extension() || path.extension() != ".kt")
-            continue;
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(kotlin_directory))
+        {
+            if (entry.is_directory())
+                continue;
 
-        sources.insert(path);
+            const auto &path = entry.path();
+            if (!path.has_extension() || path.extension() != ".kt")
+                continue;
 
-        std::ifstream stream(path, std::ios::binary);
-        hash.Push(stream);
+            sources.insert(path);
+
+            std::ifstream stream(path, std::ios::binary);
+            hash.Push(stream);
+        }
+
+        for (const auto *set : next->Include)
+            queue.push(set);
     }
+
+    if (sources.empty())
+        return {};
 
     std::string target_fingerprint;
     if (std::filesystem::exists(fingerprint_path))
@@ -62,9 +76,6 @@ toolkit::result<> kompose::compile(
     for (const auto *dependency : source_set.Compile.Modules)
         for (const auto source_sets = dependency->GetSourceSets(false); const auto *set : source_sets)
             class_path.insert(set->Build / "classes");
-
-    for (const auto *set : source_set.Include)
-        class_path.insert(set->Build / "classes");
 
     {
         std::unordered_set<std::filesystem::path> paths;
@@ -171,29 +182,44 @@ toolkit::result<> kompose::compile(
         for (auto &entry : class_path)
             class_path_string.insert(entry.string());
         command.JvmClassPath = std::move(class_path_string);
+
         command.JvmDestination = destination_path;
+
         if (module.Type == ModuleType::Application)
             command.JvmIncludeRuntime = true;
+
         command.JvmJdkHome = data.JdkHome;
+
         if (data.Default)
             command.JvmDefault = *data.Default;
+
         command.JvmTarget = data.Target;
+
         if (data.JavaParameters)
             command.JvmJavaParameters = *data.JavaParameters;
+
         command.JvmModuleName = module.Id;
+
         if (data.NoJdk)
             command.JvmNoJdk = *data.NoJdk;
+
         if (data.NoReflect)
             command.JvmNoReflect = *data.NoReflect;
+
         if (no_stdlib)
             command.JvmNoStdlib = no_stdlib;
         else if (data.NoStdlib)
             command.JvmNoStdlib = *data.NoStdlib;
+
         command.JvmScriptTemplates = data.ScriptTemplates;
+
         command.JvmAddModules = data.AddModules;
+
         if (data.ExposeBoxed)
             command.JvmExposeBoxed = *data.ExposeBoxed;
+
         command.JvmNullabilityAnnotations = data.NullabilityAnnotations;
+
         if (data.EnablePreview)
             command.JvmEnablePreview = *data.EnablePreview;
 
@@ -201,11 +227,19 @@ toolkit::result<> kompose::compile(
         break;
     }
     case KotlinCompilerPlatform::Js:
+    {
+        const auto &data = std::get<JsCompilerConfigData>(source_set.Compiler.Data);
+
         return toolkit::make_error("TODO: platform.js");
+    }
     case KotlinCompilerPlatform::Native:
+    {
+        const auto &data = std::get<NativeCompilerConfigData>(source_set.Compiler.Data);
+
         return toolkit::make_error("TODO: platform.native");
+    }
     default:
-        return toolkit::make_error("TODO: platform.none");
+        return toolkit::make_error("undefined platform");
     }
 
     auto process = command.Build();

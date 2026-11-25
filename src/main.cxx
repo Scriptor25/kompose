@@ -297,6 +297,7 @@ static void task_help()
     std::cout << "options:" << std::endl;
     std::cout << " --project, -p <directory>    specify the project directory" << std::endl;
     std::cout << " --fat,     -f                specify if a fat jar should be generated when packaging" << std::endl;
+    std::cout << " --progress, -r               specify if the resolve progress should be printed via stdout" << std::endl;
 
     std::cout << std::endl;
     std::cout << "tasks:" << std::endl;
