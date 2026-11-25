@@ -260,6 +260,13 @@ bool data::serializer<toml::node, kompose::MavenCoordinate>::from_data(
             value.Version = std::move(segments[2]);
             value.Classifier = std::move(segments[3]);
             break;
+        case 5:
+            value.Group = std::move(segments[0]);
+            value.Artifact = std::move(segments[1]);
+            value.Version = std::move(segments[2]);
+            value.Classifier = segments[3].empty() ? std::nullopt : std::optional(std::move(segments[3]));
+            value.Packaging = std::move(segments[4]);
+            break;
         default:
             return false;
         }
@@ -276,6 +283,7 @@ bool data::serializer<toml::node, kompose::MavenCoordinate>::from_data(
     ok &= node["artifact"] >> value.Artifact;
     ok &= node["version"] >> value.Version;
     ok &= node["classifier"] >> value.Classifier;
+    ok &= node["packaging"] >> value.Packaging;
 
     return ok;
 }

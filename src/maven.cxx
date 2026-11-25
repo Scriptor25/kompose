@@ -92,9 +92,10 @@ toolkit::result<kompose::MavenCoordinate> kompose::MavenDocument::GetCoordinate(
 
     return MavenCoordinate
     {
-        .Group    = std::move(group),
-        .Artifact = std::move(artifact),
-        .Version  = std::move(version),
+        .Group     = std::move(group),
+        .Artifact  = std::move(artifact),
+        .Version   = std::move(version),
+        .Packaging = Packaging,
     };
 }
 
@@ -319,7 +320,8 @@ bool kompose::MavenCoordinate::operator==(const MavenCoordinate &other) const
     return Group == other.Group
            && Artifact == other.Artifact
            && Version == other.Version
-           && Classifier == other.Classifier;
+           && Classifier == other.Classifier
+           && Packaging == other.Packaging;
 }
 
 std::filesystem::path kompose::MavenCoordinate::locate() const
@@ -427,6 +429,15 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
 
     if (!resolved && !file_resolved)
     {
+        if (Packaging)
+            return toolkit::make_error(
+                "failed to resolve maven coordinate '{}:{}:{}:{}:{}' ({})",
+                Group,
+                Artifact,
+                Version,
+                Classifier.value_or({}),
+                *Packaging,
+                filename);
         if (Classifier)
             return toolkit::make_error(
                 "failed to resolve maven coordinate '{}:{}:{}:{}' ({})",
@@ -451,26 +462,18 @@ toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_di
 toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
     const Project &project,
     const http::client &client,
-    const bool classifier,
+    const bool with_classifier,
     const std::string &extension,
     bool *resolved) const
 {
-    const auto filename = classifier && Classifier ? get_filename(*Classifier, extension) : get_filename(extension);
+    const auto filename = with_classifier && Classifier
+                              ? get_filename(*Classifier, extension)
+                              : get_filename(extension);
 
     return resolve_file_direct(project, client, filename, resolved);
 }
 
-toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
-    const Project &project,
-    const http::client &client,
-    const char *classifier,
-    const std::string &extension,
-    bool *resolved) const
-{
-    return resolve_file(project, client, std::string(classifier), extension, resolved);
-}
-
-toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file(
+toolkit::result<std::filesystem::path> kompose::MavenCoordinate::resolve_file_ex(
     const Project &project,
     const http::client &client,
     const std::string &classifier,
@@ -485,7 +488,12 @@ toolkit::result<kompose::MavenDocument> kompose::MavenCoordinate::resolve_pom(
     const http::client &client) const
 {
     std::filesystem::path local_path;
-    if (auto res = resolve_file(project, client, false, "pom") >> local_path; !res)
+    if (auto res = resolve_file(
+                       project,
+                       client,
+                       false,
+                       "pom"
+                   ) >> local_path; !res)
         return res;
 
     std::ifstream stream(local_path, std::ios::binary);
@@ -533,7 +541,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
                            project,
                            client,
                            true,
-                           "jar"
+                           coordinate.Packaging.value_or("jar")
                        ) >> local_path; !res)
             return res;
 
@@ -542,7 +550,7 @@ toolkit::result<std::unordered_set<std::filesystem::path>> kompose::resolve(
         if (with_sources)
         {
             bool resolved;
-            if (auto res = coordinate.resolve_file(
+            if (auto res = coordinate.resolve_file_ex(
                                project,
                                client,
                                "sources",
@@ -678,6 +686,8 @@ toolkit::result<std::unordered_set<kompose::MavenCoordinate>> kompose::resolve_t
                     && source.Version == coordinate.Version)
                 {
                     coordinate.Classifier = source.Classifier;
+                    if (source.Packaging)
+                        coordinate.Packaging = source.Packaging;
                     tree.insert(coordinate);
                     any = true;
                 }

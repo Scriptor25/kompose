@@ -47,16 +47,10 @@ namespace kompose
         [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
             const Project &project,
             const http::client &client,
-            bool classifier,
+            bool with_classifier,
             const std::string &extension,
             bool *resolved = nullptr) const;
-        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
-            const Project &project,
-            const http::client &client,
-            const char *classifier,
-            const std::string &extension,
-            bool *resolved = nullptr) const;
-        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file(
+        [[nodiscard]] toolkit::result<std::filesystem::path> resolve_file_ex(
             const Project &project,
             const http::client &client,
             const std::string &classifier,
@@ -71,6 +65,7 @@ namespace kompose
         std::string Artifact;
         std::string Version;
         std::optional<std::string> Classifier;
+        std::optional<std::string> Packaging;
     };
 
     enum class MavenDependencyScope : uint8_t
@@ -195,8 +190,9 @@ struct std::hash<kompose::MavenCoordinate>
         const auto h2 = std::hash<std::string>()(value.Artifact);
         const auto h3 = std::hash<std::string>()(value.Version);
         const auto h4 = std::hash<std::optional<std::string>>()(value.Classifier);
+        const auto h5 = std::hash<std::optional<std::string>>()(value.Packaging);
 
-        return combine(h1, combine(h2, combine(h3, h4)));
+        return combine(h1, combine(h2, combine(h3, combine(h4, h5))));
     }
 };
 

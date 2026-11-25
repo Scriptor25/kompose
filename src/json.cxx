@@ -148,6 +148,7 @@ void data::serializer<json::node, kompose::MavenCoordinate>::to_data(
         { "artifact", value.Artifact },
         { "version", value.Version },
         { "classifier", value.Classifier },
+        { "packaging", value.Packaging },
         { "path", repository_path / binary_filename },
         { "sources", repository_path / source_filename },
     };
